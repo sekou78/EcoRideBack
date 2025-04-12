@@ -20,3 +20,10 @@
 # Lancement du serveur local symfony
 
     * $ symfony server:start
+
+# Création de la BDD
+
+    * Mise en place du fichier .env.local et paramétrage
+        - $ cp .env .env.local
+        - $ php bin/console doctrine:database:create
+        - $ php bin/console doctrine:migrations:migrate
