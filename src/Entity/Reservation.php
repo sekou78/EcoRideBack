@@ -16,6 +16,9 @@ class Reservation
     #[ORM\Column(length: 255)]
     private ?string $statut = null;
 
+    #[ORM\ManyToOne(inversedBy: 'reservations')]
+    private ?Trajet $trajet = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -29,6 +32,18 @@ class Reservation
     public function setStatut(string $statut): static
     {
         $this->statut = $statut;
+
+        return $this;
+    }
+
+    public function getTrajet(): ?Trajet
+    {
+        return $this->trajet;
+    }
+
+    public function setTrajet(?Trajet $trajet): static
+    {
+        $this->trajet = $trajet;
 
         return $this;
     }
