@@ -46,9 +46,16 @@ class Trajet
     #[ORM\OneToMany(targetEntity: Reservation::class, mappedBy: 'trajet')]
     private Collection $reservations;
 
+    /**
+     * @var Collection<int, Historique>
+     */
+    #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'trajet')]
+    private Collection $historiques;
+
     public function __construct()
     {
         $this->reservations = new ArrayCollection();
+        $this->historiques = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -176,6 +183,36 @@ class Trajet
             // set the owning side to null (unless already changed)
             if ($reservation->getTrajet() === $this) {
                 $reservation->setTrajet(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Historique>
+     */
+    public function getHistoriques(): Collection
+    {
+        return $this->historiques;
+    }
+
+    public function addHistorique(Historique $historique): static
+    {
+        if (!$this->historiques->contains($historique)) {
+            $this->historiques->add($historique);
+            $historique->setTrajet($this);
+        }
+
+        return $this;
+    }
+
+    public function removeHistorique(Historique $historique): static
+    {
+        if ($this->historiques->removeElement($historique)) {
+            // set the owning side to null (unless already changed)
+            if ($historique->getTrajet() === $this) {
+                $historique->setTrajet(null);
             }
         }
 
