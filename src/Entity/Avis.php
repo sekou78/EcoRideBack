@@ -23,6 +23,9 @@ class Avis
     #[ORM\Column]
     private ?bool $valideParEmployee = null;
 
+    #[ORM\ManyToOne(inversedBy: 'avis')]
+    private ?Reservation $reservation = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -60,6 +63,18 @@ class Avis
     public function setValideParEmployee(bool $valideParEmployee): static
     {
         $this->valideParEmployee = $valideParEmployee;
+
+        return $this;
+    }
+
+    public function getReservation(): ?Reservation
+    {
+        return $this->reservation;
+    }
+
+    public function setReservation(?Reservation $reservation): static
+    {
+        $this->reservation = $reservation;
 
         return $this;
     }
