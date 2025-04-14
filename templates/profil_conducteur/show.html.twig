@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}ProfilConducteur{% endblock %}
+
+{% block body %}
+    <h1>ProfilConducteur</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ profil_conducteur.id }}</td>
+            </tr>
+            <tr>
+                <th>PlaqueImmatriculation</th>
+                <td>{{ profil_conducteur.plaqueImmatriculation }}</td>
+            </tr>
+            <tr>
+                <th>Modele</th>
+                <td>{{ profil_conducteur.modele }}</td>
+            </tr>
+            <tr>
+                <th>Marque</th>
+                <td>{{ profil_conducteur.marque }}</td>
+            </tr>
+            <tr>
+                <th>Couleur</th>
+                <td>{{ profil_conducteur.couleur }}</td>
+            </tr>
+            <tr>
+                <th>NombrePlaces</th>
+                <td>{{ profil_conducteur.nombrePlaces }}</td>
+            </tr>
+            <tr>
+                <th>AccepteFumeur</th>
+                <td>{{ profil_conducteur.accepteFumeur ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>AccepteAnimaux</th>
+                <td>{{ profil_conducteur.accepteAnimaux ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>AutresPreferences</th>
+                <td>{{ profil_conducteur.autresPreferences }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_profil_conducteur_index') }}">back to list</a>
+
+    <a href="{{ path('app_profil_conducteur_edit', {'id': profil_conducteur.id}) }}">edit</a>
+
+    {{ include('profil_conducteur/_delete_form.html.twig') }}
+{% endblock %}

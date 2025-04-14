@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}ProfilConducteur index{% endblock %}
+
+{% block body %}
+    <h1>ProfilConducteur index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>PlaqueImmatriculation</th>
+                <th>Modele</th>
+                <th>Marque</th>
+                <th>Couleur</th>
+                <th>NombrePlaces</th>
+                <th>AccepteFumeur</th>
+                <th>AccepteAnimaux</th>
+                <th>AutresPreferences</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for profil_conducteur in profil_conducteurs %}
+            <tr>
+                <td>{{ profil_conducteur.id }}</td>
+                <td>{{ profil_conducteur.plaqueImmatriculation }}</td>
+                <td>{{ profil_conducteur.modele }}</td>
+                <td>{{ profil_conducteur.marque }}</td>
+                <td>{{ profil_conducteur.couleur }}</td>
+                <td>{{ profil_conducteur.nombrePlaces }}</td>
+                <td>{{ profil_conducteur.accepteFumeur ? 'Yes' : 'No' }}</td>
+                <td>{{ profil_conducteur.accepteAnimaux ? 'Yes' : 'No' }}</td>
+                <td>{{ profil_conducteur.autresPreferences }}</td>
+                <td>
+                    <a href="{{ path('app_profil_conducteur_show', {'id': profil_conducteur.id}) }}">show</a>
+                    <a href="{{ path('app_profil_conducteur_edit', {'id': profil_conducteur.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="10">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_profil_conducteur_new') }}">Create new</a>
+{% endblock %}

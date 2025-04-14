@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New ProfilConducteur{% endblock %}
+
+{% block body %}
+    <h1>Create new ProfilConducteur</h1>
+
+    {{ include('profil_conducteur/_form.html.twig') }}
+
+    <a href="{{ path('app_profil_conducteur_index') }}">back to list</a>
+{% endblock %}

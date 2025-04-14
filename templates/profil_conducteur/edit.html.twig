@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit ProfilConducteur{% endblock %}
+
+{% block body %}
+    <h1>Edit ProfilConducteur</h1>
+
+    {{ include('profil_conducteur/_form.html.twig', {'button_label': 'Update'}) }}
+
+    <a href="{{ path('app_profil_conducteur_index') }}">back to list</a>
+
+    {{ include('profil_conducteur/_delete_form.html.twig') }}
+{% endblock %}
