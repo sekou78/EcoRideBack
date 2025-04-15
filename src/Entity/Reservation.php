@@ -14,11 +14,11 @@ class Reservation
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read'])]
+    #[Groups(['reservation:read', 'avis:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['reservation:read'])]
+    #[Groups(['reservation:read', 'avis:read'])]
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'reservations')]
