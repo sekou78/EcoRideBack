@@ -3,10 +3,13 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
@@ -15,6 +18,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['trajet:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
@@ -42,6 +46,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $apiToken = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups(['trajet:read'])]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -65,10 +70,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?int $credits = null;
 
+    /**
+     * @var Collection<int, Trajet>
+     */
+    #[ORM\OneToMany(targetEntity: Trajet::class, mappedBy: 'user')]
+    private Collection $trajets;
+
     /** @throws \Exception */
     public function __construct()
     {
         $this->apiToken = bin2hex(random_bytes(50));
+        $this->trajets = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -274,6 +286,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setCredits(int $credits): static
     {
         $this->credits = $credits;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Trajet>
+     */
+    public function getTrajets(): Collection
+    {
+        return $this->trajets;
+    }
+
+    public function addTrajet(Trajet $trajet): static
+    {
+        if (!$this->trajets->contains($trajet)) {
+            $this->trajets->add($trajet);
+            $trajet->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTrajet(Trajet $trajet): static
+    {
+        if ($this->trajets->removeElement($trajet)) {
+            // set the owning side to null (unless already changed)
+            if ($trajet->getUser() === $this) {
+                $trajet->setUser(null);
+            }
+        }
 
         return $this;
     }

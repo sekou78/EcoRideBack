@@ -15,44 +15,53 @@ class Trajet
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read', 'historique:read'])]
+    #[Groups(['reservation:read', 'historique:read', 'trajet:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['trajet:read'])]
     private ?string $adresseDepart = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['trajet:read'])]
     private ?string $adresseArrivee = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[Groups(['trajet:read'])]
     private ?\DateTimeInterface $dateDepart = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[Groups(['trajet:read'])]
     private ?\DateTimeInterface $dateArrivee = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    #[Groups(['trajet:read'])]
     private ?string $prix = null;
 
     #[ORM\Column]
+    #[Groups(['trajet:read'])]
     private ?bool $estEcologique = null;
 
     #[ORM\Column]
+    #[Groups(['trajet:read'])]
     private ?int $nombrePlacesDisponible = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['reservation:read', 'historique:read'])]
+    #[Groups(['reservation:read', 'historique:read', 'trajet:read'])]
     private ?string $statut = null;
 
     /**
      * @var Collection<int, Reservation>
      */
     #[ORM\OneToMany(targetEntity: Reservation::class, mappedBy: 'trajet')]
+    #[Groups(['reservation:read'])]
     private Collection $reservations;
 
     /**
      * @var Collection<int, Historique>
      */
     #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'trajet')]
+    #[Groups(['historique:read'])]
     private Collection $historiques;
 
     #[ORM\Column]
@@ -60,6 +69,10 @@ class Trajet
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\ManyToOne(inversedBy: 'trajets')]
+    #[Groups(['trajet:read'])]
+    private ?User $user = null;
 
     public function __construct()
     {
@@ -248,6 +261,18 @@ class Trajet
     public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(?User $user): static
+    {
+        $this->user = $user;
 
         return $this;
     }

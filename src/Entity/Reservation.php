@@ -14,7 +14,7 @@ class Reservation
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read', 'avis:read'])]
+    #[Groups(['reservation:read', 'avis:read', 'trajet:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
@@ -22,7 +22,7 @@ class Reservation
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'reservations')]
-    #[Groups(['reservation:read'])]
+    #[Groups(['reservation:read', 'trajet:read'])]
     private ?Trajet $trajet = null;
 
     /**
