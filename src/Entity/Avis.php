@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\AvisRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: AvisRepository::class)]
 class Avis
@@ -12,19 +13,30 @@ class Avis
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['avis:read'])]
     private ?int $id = null;
 
     #[ORM\Column]
+    #[Groups(['avis:read'])]
     private ?int $note = null;
 
     #[ORM\Column(type: Types::TEXT)]
+    #[Groups(['avis:read'])]
     private ?string $commentaire = null;
 
     #[ORM\Column]
+    #[Groups(['avis:read'])]
     private ?bool $valideParEmployee = null;
 
     #[ORM\ManyToOne(inversedBy: 'avis')]
+    #[Groups(['avis:read'])]
     private ?Reservation $reservation = null;
+
+    #[ORM\Column]
+    private ?\DateTimeImmutable $createdAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $updatedAt = null;
 
     public function getId(): ?int
     {
@@ -75,6 +87,30 @@ class Avis
     public function setReservation(?Reservation $reservation): static
     {
         $this->reservation = $reservation;
+
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    {
+        $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static
+    {
+        $this->updatedAt = $updatedAt;
 
         return $this;
     }
