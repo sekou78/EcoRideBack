@@ -2,9 +2,9 @@
 
 namespace App\Controller;
 
-use App\Entity\Reservation;
+use App\Entity\Historique;
 use App\Entity\Trajet;
-use App\Repository\ReservationRepository;
+use App\Repository\HistoriqueRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -13,12 +13,12 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 
-#[Route("api/reservation", name: "app_api_reservation_")]
-final class ReservationController extends AbstractController
+#[Route("api/historique", name: "app_api_historique_")]
+final class HistoriqueController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $manager,
-        private ReservationRepository $repository,
+        private HistoriqueRepository $repository,
         private SerializerInterface $serializer,
         private UrlGeneratorInterface $urlGenerator
     ) {}
@@ -31,9 +31,9 @@ final class ReservationController extends AbstractController
             true
         );
 
-        $reservation = $this->serializer->deserialize(
+        $historique = $this->serializer->deserialize(
             $request->getContent(),
-            Reservation::class,
+            Historique::class,
             'json',
         );
 
@@ -43,7 +43,7 @@ final class ReservationController extends AbstractController
                 ->getRepository(Trajet::class)
                 ->find($data['trajet']);
             if ($trajet) {
-                $reservation->setTrajet($trajet);
+                $historique->setTrajet($trajet);
             } else {
                 return new JsonResponse(
                     ['error' => 'trajet non trouvé'],
@@ -52,20 +52,20 @@ final class ReservationController extends AbstractController
             }
         }
 
-        $reservation->setCreatedAt(new DateTimeImmutable());
+        $historique->setCreatedAt(new DateTimeImmutable());
 
-        $this->manager->persist($reservation);
+        $this->manager->persist($historique);
         $this->manager->flush();
 
         $responseData = $this->serializer->serialize(
-            $reservation,
+            $historique,
             'json',
-            ['groups' => ['reservation:read']]
+            ['groups' => ['historique:read']]
         );
 
         $location = $this->urlGenerator->generate(
-            'app_api_reservation_show',
-            ['id' => $reservation->getId()],
+            'app_api_historique_show',
+            ['id' => $historique->getId()],
             UrlGeneratorInterface::ABSOLUTE_URL,
         );
 
@@ -80,13 +80,13 @@ final class ReservationController extends AbstractController
     #[Route("/{id}", name: "show", methods: "GET")]
     public function show(int $id): JsonResponse
     {
-        $reservation = $this->repository->findOneBy(['id' => $id]);
+        $historique = $this->repository->findOneBy(['id' => $id]);
 
-        if ($reservation) {
+        if ($historique) {
             $responseData = $this->serializer->serialize(
-                $reservation,
+                $historique,
                 'json',
-                ['groups' => ['reservation:read']]
+                ['groups' => ['historique:read']]
             );
 
             return new JsonResponse(
@@ -112,15 +112,15 @@ final class ReservationController extends AbstractController
         );
 
         // Récupérer la réservation existante
-        $reservation = $this->manager
+        $historique = $this->manager
             ->getRepository(
-                Reservation::class
+                Historique::class
             )
             ->findOneBy(
                 ['id' => $id]
             );
 
-        if (!$reservation) {
+        if (!$historique) {
             return new JsonResponse(
                 ['error' => 'Réservation non trouvée'],
                 Response::HTTP_NOT_FOUND
@@ -129,7 +129,7 @@ final class ReservationController extends AbstractController
 
         // Mettre à jour le statut si présent
         if ($data['statut']) {
-            $reservation->setStatut($data['statut']);
+            $historique->setStatut($data['statut']);
         }
 
         // Mettre à jour le trajet si fourni
@@ -147,17 +147,17 @@ final class ReservationController extends AbstractController
                     Response::HTTP_BAD_REQUEST
                 );
             }
-            $reservation->setTrajet($trajet);
+            $historique->setTrajet($trajet);
         }
 
-        $reservation->setUpdatedAt(new \DateTimeImmutable());
+        $historique->setUpdatedAt(new \DateTimeImmutable());
 
         $this->manager->flush();
 
         $responseData = $this->serializer->serialize(
-            $reservation,
+            $historique,
             'json',
-            ['groups' => ['reservation:read']]
+            ['groups' => ['historique:read']]
         );
 
         return new JsonResponse(
@@ -171,14 +171,14 @@ final class ReservationController extends AbstractController
     #[Route("/{id}", name: "delete", methods: "DELETE")]
     public function delete(int $id): JsonResponse
     {
-        $reservation = $this->repository->findOneBy(['id' => $id]);
+        $historique = $this->repository->findOneBy(['id' => $id]);
 
-        if ($reservation) {
-            $this->manager->remove($reservation);
+        if ($historique) {
+            $this->manager->remove($historique);
             $this->manager->flush();
 
             return new JsonResponse(
-                ["message" => "Reservation supprimé"],
+                ["message" => "Historique supprimé"],
                 Response::HTTP_OK,
             );
         }

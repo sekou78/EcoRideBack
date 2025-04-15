@@ -15,7 +15,7 @@ class Trajet
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read'])]
+    #[Groups(['reservation:read', 'historique:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
@@ -40,7 +40,7 @@ class Trajet
     private ?int $nombrePlacesDisponible = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['reservation:read'])]
+    #[Groups(['reservation:read', 'historique:read'])]
     private ?string $statut = null;
 
     /**
