@@ -60,7 +60,7 @@ class Trajet
      * @var Collection<int, Historique>
      */
     #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'trajet')]
-    #[Groups(['historique:read'])]
+    #[Groups(['historic:read'])]
     private Collection $historiques;
 
     #[ORM\Column]
