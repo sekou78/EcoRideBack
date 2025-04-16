@@ -54,7 +54,6 @@ class Trajet
      * @var Collection<int, Reservation>
      */
     #[ORM\OneToMany(targetEntity: Reservation::class, mappedBy: 'trajet')]
-    #[Groups(['reservation:read'])]
     private Collection $reservations;
 
     /**
