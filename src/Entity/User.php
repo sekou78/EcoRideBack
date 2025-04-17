@@ -18,7 +18,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read'])]
+    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
@@ -46,7 +46,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $apiToken = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read'])]
+    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read'])]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -82,12 +82,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'user')]
     private Collection $historiques;
 
+    /**
+     * @var Collection<int, ProfilConducteur>
+     */
+    #[ORM\OneToMany(targetEntity: ProfilConducteur::class, mappedBy: 'user')]
+    private Collection $profilConducteurs;
+
     /** @throws \Exception */
     public function __construct()
     {
         $this->apiToken = bin2hex(random_bytes(50));
         $this->trajets = new ArrayCollection();
         $this->historiques = new ArrayCollection();
+        $this->profilConducteurs = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -351,6 +358,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($historique->getUser() === $this) {
                 $historique->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProfilConducteur>
+     */
+    public function getProfilConducteurs(): Collection
+    {
+        return $this->profilConducteurs;
+    }
+
+    public function addProfilConducteur(ProfilConducteur $profilConducteur): static
+    {
+        if (!$this->profilConducteurs->contains($profilConducteur)) {
+            $this->profilConducteurs->add($profilConducteur);
+            $profilConducteur->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProfilConducteur(ProfilConducteur $profilConducteur): static
+    {
+        if ($this->profilConducteurs->removeElement($profilConducteur)) {
+            // set the owning side to null (unless already changed)
+            if ($profilConducteur->getUser() === $this) {
+                $profilConducteur->setUser(null);
             }
         }
 

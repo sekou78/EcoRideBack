@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\ProfilConducteurRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProfilConducteurRepository::class)]
 class ProfilConducteur
@@ -12,30 +13,39 @@ class ProfilConducteur
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['profilConducteur:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 20)]
+    #[Groups(['profilConducteur:read'])]
     private ?string $plaqueImmatriculation = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups(['profilConducteur:read'])]
     private ?string $modele = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups(['profilConducteur:read'])]
     private ?string $marque = null;
 
     #[ORM\Column(length: 20)]
+    #[Groups(['profilConducteur:read'])]
     private ?string $couleur = null;
 
     #[ORM\Column]
+    #[Groups(['profilConducteur:read'])]
     private ?int $nombrePlaces = null;
 
     #[ORM\Column]
+    #[Groups(['profilConducteur:read'])]
     private ?bool $accepteFumeur = null;
 
     #[ORM\Column]
+    #[Groups(['profilConducteur:read'])]
     private ?bool $accepteAnimaux = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['profilConducteur:read'])]
     private ?string $autresPreferences = null;
 
     #[ORM\Column]
@@ -43,6 +53,10 @@ class ProfilConducteur
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\ManyToOne(inversedBy: 'profilConducteurs')]
+    #[Groups(['profilConducteur:read'])]
+    private ?User $user = null;
 
     public function getId(): ?int
     {
@@ -165,6 +179,18 @@ class ProfilConducteur
     public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(?User $user): static
+    {
+        $this->user = $user;
 
         return $this;
     }
