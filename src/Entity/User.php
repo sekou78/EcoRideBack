@@ -18,7 +18,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read'])]
+    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
@@ -46,7 +46,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $apiToken = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read'])]
+    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read'])]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
