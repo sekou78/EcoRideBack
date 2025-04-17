@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Employes;
+use App\Entity\User;
 use App\Repository\EmployesRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,11 +27,32 @@ final class EmployesController extends AbstractController
     #[Route(methods: "POST")]
     public function new(Request $request): JsonResponse
     {
+        $data = json_decode(
+            $request->getContent(),
+            true
+        );
+
         $employes = $this->serializer->deserialize(
             $request->getContent(),
             Employes::class,
             'json',
+            ['groups' => 'employes:read']
         );
+
+        // Assigner le user
+        if ($data['user']) {
+            $user = $this->manager
+                ->getRepository(User::class)
+                ->find($data['user']);
+            if ($user) {
+                $employes->setUser($user);
+            } else {
+                return new JsonResponse(
+                    ['error' => 'user non trouvé'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+        }
 
         $employes->setCreatedAt(new DateTimeImmutable());
 
@@ -40,6 +62,7 @@ final class EmployesController extends AbstractController
         $responseData = $this->serializer->serialize(
             $employes,
             'json',
+            ['groups' => 'employes:read']
         );
 
         $location = $this->urlGenerator->generate(
@@ -65,6 +88,7 @@ final class EmployesController extends AbstractController
             $responseData = $this->serializer->serialize(
                 $employes,
                 'json',
+                ['groups' => 'employes:read']
             );
 
             return new JsonResponse(
@@ -84,6 +108,8 @@ final class EmployesController extends AbstractController
     #[Route("/{id}", name: "edit", methods: "PUT")]
     public function edit(int $id, Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+
         $employes = $this->repository->findOneBy(['id' => $id]);
 
         if ($employes) {
@@ -94,6 +120,24 @@ final class EmployesController extends AbstractController
                 [AbstractNormalizer::OBJECT_TO_POPULATE => $employes]
             );
 
+            // Mettre à jour le user si fourni
+            if ($data['user']) {
+                $user = $this->manager
+                    ->getRepository(
+                        User::class
+                    )
+                    ->find(
+                        $data['user']
+                    );
+                if (!$user) {
+                    return new JsonResponse(
+                        ['error' => 'User non trouvé'],
+                        Response::HTTP_BAD_REQUEST
+                    );
+                }
+                $employes->setUser($user);
+            }
+
             $employes->setUpdatedAt(new \DateTimeImmutable());
 
             $this->manager->flush();
@@ -101,6 +145,7 @@ final class EmployesController extends AbstractController
             $responseData = $this->serializer->serialize(
                 $employes,
                 'json',
+                ['groups' => 'employes:read']
             );
 
             return new JsonResponse(

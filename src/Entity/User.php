@@ -18,7 +18,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read'])]
+    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
@@ -46,7 +46,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $apiToken = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read'])]
+    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read'])]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -88,6 +88,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: ProfilConducteur::class, mappedBy: 'user')]
     private Collection $profilConducteurs;
 
+    /**
+     * @var Collection<int, Employes>
+     */
+    #[ORM\OneToMany(targetEntity: Employes::class, mappedBy: 'user')]
+    private Collection $employes;
+
     /** @throws \Exception */
     public function __construct()
     {
@@ -95,6 +101,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->trajets = new ArrayCollection();
         $this->historiques = new ArrayCollection();
         $this->profilConducteurs = new ArrayCollection();
+        $this->employes = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -388,6 +395,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($profilConducteur->getUser() === $this) {
                 $profilConducteur->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Employes>
+     */
+    public function getEmployes(): Collection
+    {
+        return $this->employes;
+    }
+
+    public function addEmploye(Employes $employe): static
+    {
+        if (!$this->employes->contains($employe)) {
+            $this->employes->add($employe);
+            $employe->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeEmploye(Employes $employe): static
+    {
+        if ($this->employes->removeElement($employe)) {
+            // set the owning side to null (unless already changed)
+            if ($employe->getUser() === $this) {
+                $employe->setUser(null);
             }
         }
 
