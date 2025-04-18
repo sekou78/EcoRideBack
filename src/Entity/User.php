@@ -64,9 +64,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $dateNaissance = null;
 
-    #[ORM\Column(type: Types::BLOB, nullable: true)]
-    private $photo = null;
-
     #[ORM\Column(nullable: true)]
     private ?int $credits = null;
 
@@ -290,18 +287,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setDateNaissance(string $dateNaissance): static
     {
         $this->dateNaissance = $dateNaissance;
-
-        return $this;
-    }
-
-    public function getPhoto()
-    {
-        return $this->photo;
-    }
-
-    public function setPhoto($photo): static
-    {
-        $this->photo = $photo;
 
         return $this;
     }
