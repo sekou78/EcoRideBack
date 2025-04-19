@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Reservation;
 use App\Entity\Trajet;
+use App\Entity\User;
 use App\Repository\ReservationRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,6 +48,21 @@ final class ReservationController extends AbstractController
             } else {
                 return new JsonResponse(
                     ['error' => 'trajet non trouvé'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+        }
+
+        // Assigner le user
+        if ($data['user']) {
+            $user = $this->manager
+                ->getRepository(User::class)
+                ->find($data['user']);
+            if ($user) {
+                $reservation->setUser($user);
+            } else {
+                return new JsonResponse(
+                    ['error' => 'user non trouvé'],
                     Response::HTTP_BAD_REQUEST
                 );
             }
@@ -148,6 +164,24 @@ final class ReservationController extends AbstractController
                 );
             }
             $reservation->setTrajet($trajet);
+        }
+
+        // Mettre à jour le user si fourni
+        if ($data['user']) {
+            $user = $this->manager
+                ->getRepository(
+                    User::class
+                )
+                ->find(
+                    $data['user']
+                );
+            if (!$user) {
+                return new JsonResponse(
+                    ['error' => 'User non trouvé'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+            $reservation->setUser($user);
         }
 
         $reservation->setUpdatedAt(new \DateTimeImmutable());

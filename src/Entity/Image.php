@@ -2,22 +2,20 @@
 
 namespace App\Entity;
 
-use App\Repository\EmployesRepository;
+use App\Repository\ImageRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Attribute\Groups;
 
-#[ORM\Entity(repositoryClass: EmployesRepository::class)]
-class Employes
+#[ORM\Entity(repositoryClass: ImageRepository::class)]
+class Image
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['employes:read'])]
     private ?int $id = null;
 
-    #[ORM\Column]
-    #[Groups(['employes:read'])]
-    private ?bool $validationAvis = null;
+    #[ORM\Column(type: Types::BLOB, nullable: true)]
+    private $identite;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -25,23 +23,22 @@ class Employes
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\ManyToOne(inversedBy: 'employes')]
-    #[Groups(['employes:read'])]
-    private ?User $user = null;
+    #[ORM\Column(length: 255)]
+    private ?string $filePath = null;
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function isValidationAvis(): ?bool
+    public function getIdentite()
     {
-        return $this->validationAvis;
+        return $this->identite;
     }
 
-    public function setValidationAvis(bool $validationAvis): static
+    public function setIdentite($identite): static
     {
-        $this->validationAvis = $validationAvis;
+        $this->identite = $identite;
 
         return $this;
     }
@@ -70,14 +67,14 @@ class Employes
         return $this;
     }
 
-    public function getUser(): ?User
+    public function getFilePath(): ?string
     {
-        return $this->user;
+        return $this->filePath;
     }
 
-    public function setUser(?User $user): static
+    public function setFilePath(string $filePath): static
     {
-        $this->user = $user;
+        $this->filePath = $filePath;
 
         return $this;
     }

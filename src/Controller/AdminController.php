@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Admin;
+use App\Entity\User;
 use App\Repository\AdminRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,11 +27,28 @@ final class AdminController extends AbstractController
     #[Route(methods: "POST")]
     public function new(Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+
         $admin = $this->serializer->deserialize(
             $request->getContent(),
             Admin::class,
             'json',
         );
+
+        // Assigner le user
+        if ($data['user']) {
+            $user = $this->manager
+                ->getRepository(User::class)
+                ->find($data['user']);
+            if ($user) {
+                $admin->setUser($user);
+            } else {
+                return new JsonResponse(
+                    ['error' => 'user non trouvé'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+        }
 
         $admin->setCreatedAt(new DateTimeImmutable());
 
@@ -40,6 +58,7 @@ final class AdminController extends AbstractController
         $responseData = $this->serializer->serialize(
             $admin,
             'json',
+            ['groups' => 'admin:read']
         );
 
         $location = $this->urlGenerator->generate(
@@ -65,6 +84,7 @@ final class AdminController extends AbstractController
             $responseData = $this->serializer->serialize(
                 $admin,
                 'json',
+                ['groups' => 'admin:read']
             );
 
             return new JsonResponse(
@@ -84,6 +104,8 @@ final class AdminController extends AbstractController
     #[Route("/{id}", name: "edit", methods: "PUT")]
     public function edit(int $id, Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+
         $admin = $this->repository->findOneBy(['id' => $id]);
 
         if ($admin) {
@@ -94,6 +116,24 @@ final class AdminController extends AbstractController
                 [AbstractNormalizer::OBJECT_TO_POPULATE => $admin]
             );
 
+            // Mettre à jour le user si fourni
+            if ($data['user']) {
+                $user = $this->manager
+                    ->getRepository(
+                        User::class
+                    )
+                    ->find(
+                        $data['user']
+                    );
+                if (!$user) {
+                    return new JsonResponse(
+                        ['error' => 'User non trouvé'],
+                        Response::HTTP_BAD_REQUEST
+                    );
+                }
+                $admin->setUser($user);
+            }
+
             $admin->setUpdatedAt(new \DateTimeImmutable());
 
             $this->manager->flush();
@@ -101,6 +141,7 @@ final class AdminController extends AbstractController
             $responseData = $this->serializer->serialize(
                 $admin,
                 'json',
+                ['groups' => 'admin:read']
             );
 
             return new JsonResponse(

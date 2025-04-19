@@ -14,7 +14,7 @@ class Reservation
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read', 'avis:read'])]
+    #[Groups(['reservation:read', 'avis:read', 'trajet:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
@@ -22,7 +22,7 @@ class Reservation
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'reservations')]
-    #[Groups(['reservation:read'])]
+    #[Groups(['reservation:read', 'trajet:read'])]
     private ?Trajet $trajet = null;
 
     /**
@@ -36,6 +36,10 @@ class Reservation
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[Groups(['reservation:read'])]
+    private ?User $user = null;
 
     public function __construct()
     {
@@ -121,6 +125,18 @@ class Reservation
     public function setUpdatedAt(?\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(?User $user): static
+    {
+        $this->user = $user;
 
         return $this;
     }

@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Avis;
 use App\Entity\Reservation;
+use App\Entity\User;
 use App\Repository\AvisRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,6 +48,21 @@ final class AvisController extends AbstractController
             } else {
                 return new JsonResponse(
                     ['error' => 'reservation non trouvé'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+        }
+
+        // Assigner le user
+        if ($data['user']) {
+            $user = $this->manager
+                ->getRepository(User::class)
+                ->find($data['user']);
+            if ($user) {
+                $avis->setUser($user);
+            } else {
+                return new JsonResponse(
+                    ['error' => 'user non trouvé'],
                     Response::HTTP_BAD_REQUEST
                 );
             }
@@ -158,6 +174,24 @@ final class AvisController extends AbstractController
                 );
             }
             $avis->setReservation($reservation);
+        }
+
+        // Mettre à jour le user si fourni
+        if ($data['user']) {
+            $user = $this->manager
+                ->getRepository(
+                    User::class
+                )
+                ->find(
+                    $data['user']
+                );
+            if (!$user) {
+                return new JsonResponse(
+                    ['error' => 'User non trouvé'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+            $avis->setUser($user);
         }
 
         $avis->setUpdatedAt(new \DateTimeImmutable());
