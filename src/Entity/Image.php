@@ -7,14 +7,14 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ImageRepository::class)]
-class Image implements \JsonSerializable
+class Image
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::BLOB)]
+    #[ORM\Column(type: Types::BLOB, nullable: true)]
     private $identite;
 
     #[ORM\Column]
@@ -77,14 +77,5 @@ class Image implements \JsonSerializable
         $this->filePath = $filePath;
 
         return $this;
-    }
-
-    public function jsonSerialize(): mixed
-    {
-        return [
-            'id' => $this->id,
-            'path' => $this->filePath,
-            'identite' => $this->identite
-        ];
     }
 }
