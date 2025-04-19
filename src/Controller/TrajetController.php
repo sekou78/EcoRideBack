@@ -2,8 +2,6 @@
 
 namespace App\Controller;
 
-use App\Entity\Historique;
-use App\Entity\Reservation;
 use App\Entity\Trajet;
 use App\Entity\User;
 use App\Repository\TrajetRepository;
@@ -13,7 +11,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route("api/trajet", name: "app_api_trajet_")]

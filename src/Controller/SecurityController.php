@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Image;
 use App\Entity\User;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -112,6 +113,11 @@ final class SecurityController extends AbstractController
     #[Route('/account/edit', name: 'edit', methods: 'PUT')]
     public function edit(Request $request): JsonResponse
     {
+        $data = json_decode(
+            $request->getContent(),
+            true
+        );
+
         //Désérialisation des données de la requête pour mettre à jour l'utilisateur
         $user = $this->serializer
             ->deserialize(
@@ -153,6 +159,24 @@ final class SecurityController extends AbstractController
                     Response::HTTP_FORBIDDEN
                 );
             }
+        }
+
+        // Mettre à jour l'image si fourni
+        if ($data['image']) {
+            $image = $this->manager
+                ->getRepository(
+                    Image::class
+                )
+                ->find(
+                    $data['image']
+                );
+            if (!$image) {
+                return new JsonResponse(
+                    ['error' => 'User non trouvé'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+            $user->setImage($image);
         }
 
         $this->manager->flush();
