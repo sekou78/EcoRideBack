@@ -12,9 +12,11 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route("api/avis", name: "app_api_avis_")]
+#[IsGranted('ROLE_PASSAGERS')]
 final class AvisController extends AbstractController
 {
     public function __construct(

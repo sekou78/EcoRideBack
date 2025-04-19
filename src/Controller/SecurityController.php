@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -32,6 +33,35 @@ final class SecurityController extends AbstractController
             User::class,
             'json'
         );
+
+        // Vérification de l'e-mail dans la base de donnée
+        $existingUser = $this->manager
+            ->getRepository(User::class)
+            ->findOneBy(
+                ['email' => $user->getEmail()]
+            );
+        if ($existingUser) {
+            return new JsonResponse(
+                ['error' => 'Email déjà utilisé'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Si l'utilisateur tente de créer un administrateur, vérifiez s'il existe déjà un administrateur
+        if (in_array(
+            "ROLE_ADMIN",
+            $user->getRoles()
+        )) {
+            $existingAdmin = $this->manager
+                ->getRepository(User::class)
+                ->findOneByRole('ROLE_ADMIN');
+            if ($existingAdmin) {
+                return new JsonResponse(
+                    ['error' => 'Un compte administrateur existe déjà'],
+                    Response::HTTP_FORBIDDEN
+                );
+            }
+        }
 
         // Hachage du mot de passe
         $user->setPassword(
@@ -130,13 +160,13 @@ final class SecurityController extends AbstractController
         $user->setUpdatedAt(new \DateTimeImmutable());
 
         // Vérification si l'utilisateur tente de modifier ses rôles
-        // $data = $request->toArray();
-        // if (isset($data['roles']) && !$this->isGranted('ROLE_ADMIN')) {
-        //     return new JsonResponse(
-        //         ['error' => 'You cannot modify roles'],
-        //         Response::HTTP_FORBIDDEN
-        //     );
-        // }
+        $data = $request->toArray();
+        if (isset($data['roles']) && !$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse(
+                ['error' => 'You cannot modify roles'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
 
         // Hachage du mot de passe si modifié
         if (isset($request->toArray()['password'])) {
@@ -209,6 +239,7 @@ final class SecurityController extends AbstractController
         name: 'admin_create_user',
         methods: 'POST'
     )]
+    #[IsGranted('ROLE_ADMIN')]
     public function createUser(
         Request $request,
         ValidatorInterface $validator
@@ -249,7 +280,7 @@ final class SecurityController extends AbstractController
             );
         }
 
-        // Si l'utilisateur tente de créer un administrateur, vérifiez s'il existe déjà un administrateur
+        // Si l'admin tente de créer un administrateur, vérifiez s'il existe déjà un administrateur
         if (in_array("ROLE_ADMIN", $user->getRoles())) {
             $existingAdmin = $this->manager
                 ->getRepository(User::class)
