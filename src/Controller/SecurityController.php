@@ -39,7 +39,7 @@ final class SecurityController extends AbstractController
         if (count($errors) > 0) {
             $messages = [];
             foreach ($errors as $error) {
-                $messages[] = $error->getPropertyPath() . ': ' . $error->getMessage();
+                $messages[] = $error->getMessage();
             }
 
             return new JsonResponse(
@@ -168,15 +168,6 @@ final class SecurityController extends AbstractController
 
         $user->setUpdatedAt(new \DateTimeImmutable());
 
-        // Vérification si l'utilisateur tente de modifier ses rôles
-        $data = $request->toArray();
-        if (isset($data['roles']) && !$this->isGranted('ROLE_ADMIN')) {
-            return new JsonResponse(
-                ['error' => 'You cannot modify roles'],
-                Response::HTTP_FORBIDDEN
-            );
-        }
-
         // Hachage du mot de passe si modifié
         if (isset($request->toArray()['password'])) {
             $user->setPassword(
@@ -188,16 +179,17 @@ final class SecurityController extends AbstractController
             );
         }
 
-        if (in_array('ROLE_ADMIN', $user->getRoles())) {
-            $existingAdmin = $this->manager
-                ->getRepository(User::class)
-                ->findOneByRole('ROLE_ADMIN');
-            if ($existingAdmin) {
-                return new JsonResponse(
-                    ['error' => 'Un compte administrateur existe déjà.'],
-                    Response::HTTP_FORBIDDEN
-                );
+        $errors = $this->validator->validate($user);
+        if (count($errors) > 0) {
+            $messages = [];
+            foreach ($errors as $error) {
+                $messages[] = $error->getMessage();
             }
+
+            return new JsonResponse(
+                ['errors' => $messages],
+                Response::HTTP_BAD_REQUEST
+            );
         }
 
         // Mettre à jour l'image si fourni
@@ -251,7 +243,6 @@ final class SecurityController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function createUser(
         Request $request,
-        ValidatorInterface $validator
     ): JsonResponse {
         // Désérialisation de l'utilisateur depuis le contenu de la requête
         $user = $this->serializer
@@ -260,21 +251,6 @@ final class SecurityController extends AbstractController
                 User::class,
                 'json'
             );
-
-        // Validation des données
-        $errors = $validator->validate($user);
-        if (count($errors) > 0) {
-            $errorMessages = [];
-            foreach ($errors as $error) {
-                $errorMessages[$error->getPropertyPath()]
-                    =
-                    $error->getMessage();
-            }
-            return new JsonResponse(
-                ['errors' => $errorMessages],
-                Response::HTTP_BAD_REQUEST
-            );
-        }
 
         // Vérification de l'existence d'un utilisateur avec cet email
         $existingUser = $this->manager
@@ -288,6 +264,9 @@ final class SecurityController extends AbstractController
                 Response::HTTP_BAD_REQUEST
             );
         }
+
+        //Attribution du rôle d'employé
+        $user->setRoles(['ROLE_EMPLOYE']);
 
         // Si l'admin tente de créer un administrateur, vérifiez s'il existe déjà un administrateur
         if (in_array("ROLE_ADMIN", $user->getRoles())) {
