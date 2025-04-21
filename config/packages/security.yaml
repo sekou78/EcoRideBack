@@ -33,10 +33,10 @@ security:
   # Note: Only the *first* access control that matches will be used
   access_control:
     - { path: ^/admin, roles: ROLE_ADMIN }
-    - { path: ^/employes, roles: ROLE_EMPLOYES }
-    - { path: ^/passagers, roles: ROLE_PASSAGERS }
-    - { path: ^/chauffeurs, roles: ROLE_CHAUFFEURS }
-    - { path: ^/chauffeurs_passagers, roles: ROLE_CHAUFFEURS_PASSAGERS }
+    - { path: ^/employe, roles: ROLE_EMPLOYE }
+    - { path: ^/passager, roles: ROLE_PASSAGER }
+    - { path: ^/chauffeur, roles: ROLE_CHAUFFEUR }
+    - { path: ^/chauffeur_passager, roles: ROLE_PASSAGER_CHAUFFEUR }
     - { path: ^/api/registration, roles: PUBLIC_ACCESS }
     - { path: ^/api/login, roles: PUBLIC_ACCESS }
     - { path: ^/api, roles: ROLE_USER }

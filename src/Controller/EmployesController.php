@@ -16,7 +16,7 @@ use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route("api/employes", name: "app_api_employes_")]
-#[IsGranted("ROLE_EMPLOYES")]
+#[IsGranted("ROLE_EMPLOYE")]
 final class EmployesController extends AbstractController
 {
     public function __construct(

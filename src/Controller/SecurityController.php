@@ -22,7 +22,8 @@ final class SecurityController extends AbstractController
     public function __construct(
         private SerializerInterface $serializer,
         private EntityManagerInterface $manager,
-        private UserPasswordHasherInterface $passwordHasher
+        private UserPasswordHasherInterface $passwordHasher,
+        private ValidatorInterface $validator
     ) {}
     #[Route('/registration', name: 'registration', methods: 'POST')]
     public function register(
@@ -33,6 +34,19 @@ final class SecurityController extends AbstractController
             User::class,
             'json'
         );
+
+        $errors = $this->validator->validate($user);
+        if (count($errors) > 0) {
+            $messages = [];
+            foreach ($errors as $error) {
+                $messages[] = $error->getPropertyPath() . ': ' . $error->getMessage();
+            }
+
+            return new JsonResponse(
+                ['errors' => $messages],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
 
         // Vérification de l'e-mail dans la base de donnée
         $existingUser = $this->manager
@@ -47,20 +61,15 @@ final class SecurityController extends AbstractController
             );
         }
 
-        // Si l'utilisateur tente de créer un administrateur, vérifiez s'il existe déjà un administrateur
-        if (in_array(
-            "ROLE_ADMIN",
-            $user->getRoles()
-        )) {
-            $existingAdmin = $this->manager
-                ->getRepository(User::class)
-                ->findOneByRole('ROLE_ADMIN');
-            if ($existingAdmin) {
-                return new JsonResponse(
-                    ['error' => 'Un compte administrateur existe déjà'],
-                    Response::HTTP_FORBIDDEN
-                );
-            }
+        // Interdire la création par un utilisateur (ROLE_EMPLOYE ou ROLE_ADMIN)
+        if (
+            in_array("ROLE_EMPLOYE", $user->getRoles()) ||
+            in_array("ROLE_ADMIN", $user->getRoles())
+        ) {
+            return new JsonResponse(
+                ['error' => "Vous n'êtes pas autorisé à créer ce rôle"],
+                Response::HTTP_FORBIDDEN
+            );
         }
 
         // Hachage du mot de passe

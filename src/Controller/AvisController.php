@@ -16,7 +16,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route("api/avis", name: "app_api_avis_")]
-#[IsGranted('ROLE_PASSAGERS')]
+#[IsGranted('ROLE_PASSAGER')]
 final class AvisController extends AbstractController
 {
     public function __construct(

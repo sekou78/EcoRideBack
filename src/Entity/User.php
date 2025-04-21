@@ -5,11 +5,11 @@ namespace App\Entity;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
@@ -21,18 +21,37 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read', 'avis:read'])]
     private ?int $id = null;
 
+    #[Assert\NotBlank(message: 'Veuillez renseigner un email.')]
+    #[Assert\Email(message: 'Veuillez renseigner un email valide.')]
     #[ORM\Column(length: 180)]
     private ?string $email = null;
 
     /**
      * @var list<string> The user roles
      */
+    #[Assert\NotBlank]
+    #[Assert\All([
+        new Assert\Choice(
+            choices: [
+                'ROLE_PASSAGER',
+                'ROLE_CHAUFFEUR',
+                'ROLE_PASSAGER_CHAUFFEUR',
+            ],
+            message: 'Choisissez un rôle valide.'
+        )
+    ])]
     #[ORM\Column]
     private array $roles = [];
 
     /**
      * @var string The hashed password
      */
+    #[Assert\NotBlank(message: 'Veuillez renseigner un mot de passe.')]
+    #[Assert\Length(min: 8, minMessage: "Le mot de passe n'est pas conforme !
+          Au moins 8 caractères comprenant: 
+          1 lettre majuscule,
+          1 lettre miniscule,
+          1chiffre et 1 caractères sepéciale.")]
     #[ORM\Column]
     private ?string $password = null;
 
@@ -45,6 +64,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255)]
     private ?string $apiToken = null;
 
+    #[Assert\NotBlank(message: 'Veuillez renseigner un pseudo.')]
+    #[Assert\Length(min: 2, max: 50)]
     #[ORM\Column(length: 50)]
     #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read', 'avis:read'])]
     private ?string $pseudo = null;
