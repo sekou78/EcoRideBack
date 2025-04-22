@@ -35,6 +35,9 @@ final class SecurityController extends AbstractController
             'json'
         );
 
+        // Etat du compte par défaut
+        $user->setCompteSuspendu(false);
+
         $errors = $this->validator->validate($user);
         if (count($errors) > 0) {
             $messages = [];
@@ -252,6 +255,9 @@ final class SecurityController extends AbstractController
                 'json'
             );
 
+        // Etat du compte par défaut
+        $user->setCompteSuspendu(false);
+
         // Vérification de l'existence d'un utilisateur avec cet email
         $existingUser = $this->manager
             ->getRepository(User::class)
@@ -305,6 +311,50 @@ final class SecurityController extends AbstractController
                 'roles' => $user->getRoles()
             ],
             Response::HTTP_CREATED
+        );
+    }
+
+    #[Route(
+        '/admin/droitSuspensionComptes/{droitId}',
+        name: 'admin_droitSuspensionComptes',
+        methods: 'PUT'
+    )]
+    #[IsGranted('ROLE_ADMIN')]
+    public function droitSuspensionComptes(
+        int $droitId,
+        EntityManagerInterface $manager
+    ): JsonResponse {
+        $droit = $manager
+            ->getRepository(User::class)
+            ->findOneBy(['id' => $droitId]);
+
+        // Vérification si l'utilisateur a le rôle requis
+        if (
+            !$this->isGranted('ROLE_ADMIN')
+        ) {
+            return new JsonResponse(
+                ['message' => 'Accès réfusé'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        if (!$droit) {
+            return new JsonResponse(
+                ['error' => 'User non trouvé'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Suspension du compte
+        $droit->setCompteSuspendu(true);
+
+        $droit->setUpdatedAt(new DateTimeImmutable());
+
+        $manager->flush();
+
+        return new JsonResponse(
+            ['message' => 'Compte suspendu'],
+            Response::HTTP_OK
         );
     }
 }

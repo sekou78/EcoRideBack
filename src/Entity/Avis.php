@@ -24,10 +24,6 @@ class Avis
     #[Groups(['avis:read'])]
     private ?string $commentaire = null;
 
-    #[ORM\Column]
-    #[Groups(['avis:read'])]
-    private ?bool $valideParEmployee = null;
-
     #[ORM\ManyToOne(inversedBy: 'avis')]
     #[Groups(['avis:read'])]
     private ?Reservation $reservation = null;
@@ -41,6 +37,10 @@ class Avis
     #[ORM\ManyToOne(inversedBy: 'avis')]
     #[Groups(['avis:read'])]
     private ?User $user = null;
+
+    #[ORM\Column]
+    #[Groups(['avis:read'])]
+    private ?bool $isVisible = null;
 
     public function getId(): ?int
     {
@@ -67,18 +67,6 @@ class Avis
     public function setCommentaire(string $commentaire): static
     {
         $this->commentaire = $commentaire;
-
-        return $this;
-    }
-
-    public function isValideParEmployee(): ?bool
-    {
-        return $this->valideParEmployee;
-    }
-
-    public function setValideParEmployee(bool $valideParEmployee): static
-    {
-        $this->valideParEmployee = $valideParEmployee;
 
         return $this;
     }
@@ -127,6 +115,18 @@ class Avis
     public function setUser(?User $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    public function isVisible(): ?bool
+    {
+        return $this->isVisible;
+    }
+
+    public function setIsVisible(bool $isVisible): static
+    {
+        $this->isVisible = $isVisible;
 
         return $this;
     }

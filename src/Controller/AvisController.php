@@ -9,6 +9,7 @@ use App\Repository\AvisRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -16,7 +17,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route("api/avis", name: "app_api_avis_")]
-#[IsGranted('ROLE_PASSAGER')]
 final class AvisController extends AbstractController
 {
     public function __construct(
@@ -27,7 +27,8 @@ final class AvisController extends AbstractController
     ) {}
 
     #[Route(methods: "POST")]
-    public function new(Request $request): JsonResponse
+    #[IsGranted('ROLE_PASSAGER')]
+    public function new(Request $request, Security $security): JsonResponse
     {
         $data = json_decode(
             $request->getContent(),
@@ -39,6 +40,9 @@ final class AvisController extends AbstractController
             Avis::class,
             'json',
         );
+
+        // Les avis sont invisible par defaut
+        $avis->setIsVisible(false);
 
         // Assigner le reservation à la réservation
         if ($data['reservation']) {
@@ -55,20 +59,9 @@ final class AvisController extends AbstractController
             }
         }
 
-        // Assigner le user
-        if ($data['user']) {
-            $user = $this->manager
-                ->getRepository(User::class)
-                ->find($data['user']);
-            if ($user) {
-                $avis->setUser($user);
-            } else {
-                return new JsonResponse(
-                    ['error' => 'user non trouvé'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-        }
+        //il faut le passager qui met l'avis
+        $user = $security->getUser();
+        $avis->setUser($user);
 
         $avis->setCreatedAt(new DateTimeImmutable());
 
@@ -121,96 +114,47 @@ final class AvisController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "edit", methods: "PUT")]
-    public function edit(int $id, Request $request): JsonResponse
-    {
-        $data = json_decode(
-            $request->getContent(),
-            true
-        );
+    #[Route(
+        '/employee/validate-avis/{avisId}',
+        name: 'employee_validate_avis',
+        methods: 'PUT'
+    )]
+    #[IsGranted('ROLE_EMPLOYE')]
+    public function validateAvis(
+        int $avisId,
+        EntityManagerInterface $manager
+    ): JsonResponse {
+        $avis = $manager
+            ->getRepository(Avis::class)
+            ->findOneBy(['id' => $avisId]);
 
-        // Récupérer la réservation existante
-        $avis = $this->manager
-            ->getRepository(
-                Avis::class
-            )
-            ->findOneBy(
-                ['id' => $id]
+        // Vérification si l'utilisateur a le rôle requis
+        if (
+            !$this->isGranted('ROLE_EMPLOYE')
+        ) {
+            return new JsonResponse(
+                ['message' => 'Accès réfusé'],
+                Response::HTTP_FORBIDDEN
             );
+        }
 
         if (!$avis) {
             return new JsonResponse(
-                ['error' => 'Réservation non trouvée'],
+                ['error' => 'Avis non trouvé'],
                 Response::HTTP_NOT_FOUND
             );
         }
 
-        // Mettre à jour le note si présent
-        if ($data['note']) {
-            $avis->setNote($data['note']);
-        }
+        // Valider l'avis du visiteur
+        $avis->setIsVisible(true);
 
-        // Mettre à jour le commentaire si présent
-        if ($data['commentaire']) {
-            $avis->setCommentaire($data['commentaire']);
-        }
+        $avis->setUpdatedAt(new DateTimeImmutable());
 
-        // Mettre à jour la validation par employes si présent
-        if ($data['valideParEmployee']) {
-            $avis->setValideParEmployee($data['valideParEmployee']);
-        }
-
-        // Mettre à jour le reservation si fourni
-        if ($data['reservation']) {
-            $reservation = $this->manager
-                ->getRepository(
-                    Reservation::class
-                )
-                ->find(
-                    $data['reservation']
-                );
-            if (!$reservation) {
-                return new JsonResponse(
-                    ['error' => 'Reservation non trouvé'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-            $avis->setReservation($reservation);
-        }
-
-        // Mettre à jour le user si fourni
-        if ($data['user']) {
-            $user = $this->manager
-                ->getRepository(
-                    User::class
-                )
-                ->find(
-                    $data['user']
-                );
-            if (!$user) {
-                return new JsonResponse(
-                    ['error' => 'User non trouvé'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-            $avis->setUser($user);
-        }
-
-        $avis->setUpdatedAt(new \DateTimeImmutable());
-
-        $this->manager->flush();
-
-        $responseData = $this->serializer->serialize(
-            $avis,
-            'json',
-            ['groups' => ['avis:read']]
-        );
+        $manager->flush();
 
         return new JsonResponse(
-            $responseData,
-            Response::HTTP_OK,
-            [],
-            true
+            ['message' => 'Avis validé avec succès'],
+            Response::HTTP_OK
         );
     }
 

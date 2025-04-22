@@ -107,12 +107,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $profilConducteurs;
 
     /**
-     * @var Collection<int, Employes>
-     */
-    #[ORM\OneToMany(targetEntity: Employes::class, mappedBy: 'user')]
-    private Collection $employes;
-
-    /**
      * @var Collection<int, Avis>
      */
     #[ORM\OneToMany(targetEntity: Avis::class, mappedBy: 'user')]
@@ -121,6 +115,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToOne(cascade: ['persist', 'remove'])]
     private ?Image $image = null;
 
+    #[ORM\Column]
+    private ?bool $compteSuspendu = null;
+
     /** @throws \Exception */
     public function __construct()
     {
@@ -128,7 +125,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->trajets = new ArrayCollection();
         $this->historiques = new ArrayCollection();
         $this->profilConducteurs = new ArrayCollection();
-        $this->employes = new ArrayCollection();
         $this->avis = new ArrayCollection();
     }
 
@@ -418,36 +414,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Employes>
-     */
-    public function getEmployes(): Collection
-    {
-        return $this->employes;
-    }
-
-    public function addEmploye(Employes $employe): static
-    {
-        if (!$this->employes->contains($employe)) {
-            $this->employes->add($employe);
-            $employe->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeEmploye(Employes $employe): static
-    {
-        if ($this->employes->removeElement($employe)) {
-            // set the owning side to null (unless already changed)
-            if ($employe->getUser() === $this) {
-                $employe->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Avis>
      */
     public function getAvis(): Collection
@@ -485,6 +451,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setImage(?Image $image): static
     {
         $this->image = $image;
+
+        return $this;
+    }
+
+    public function isCompteSuspendu(): ?bool
+    {
+        return $this->compteSuspendu;
+    }
+
+    public function setCompteSuspendu(bool $compteSuspendu): static
+    {
+        $this->compteSuspendu = $compteSuspendu;
 
         return $this;
     }
