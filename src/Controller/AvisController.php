@@ -4,7 +4,6 @@ namespace App\Controller;
 
 use App\Entity\Avis;
 use App\Entity\Reservation;
-use App\Entity\User;
 use App\Repository\AvisRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -44,7 +43,7 @@ final class AvisController extends AbstractController
         // Les avis sont invisible par defaut
         $avis->setIsVisible(false);
 
-        // Assigner le reservation à la réservation
+        // Assigner l'avis à la réservation
         if ($data['reservation']) {
             $reservation = $this->manager
                 ->getRepository(Reservation::class)
@@ -59,7 +58,7 @@ final class AvisController extends AbstractController
             }
         }
 
-        //il faut le passager qui met l'avis
+        // Récupère l'utilisateur qui poste l'avis
         $user = $security->getUser();
         $avis->setUser($user);
 
@@ -88,10 +87,11 @@ final class AvisController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "show", methods: "GET")]
-    public function show(int $id): JsonResponse
+    #[Route("/", name: "show", methods: "GET")]
+    #[IsGranted('ROLE_EMPLOYE')]
+    public function show(): JsonResponse
     {
-        $avis = $this->repository->findOneBy(['id' => $id]);
+        $avis = $this->manager->getRepository(Avis::class)->findAll();
 
         if ($avis) {
             $responseData = $this->serializer->serialize(
@@ -112,6 +112,29 @@ final class AvisController extends AbstractController
             null,
             Response::HTTP_NOT_FOUND
         );
+    }
+
+    #[Route("/avisVisible", name: "avisVisible", methods: "GET")]
+    public function avisVisible(): JsonResponse
+    {
+        $avisVisible = $this->repository->findBy(['isVisible' => true]);
+
+        $data = array_map(function (Avis $avis) {
+            $reservation = $avis->getReservation();
+
+            return [
+                'note' => $avis->getNote(),
+                'commentaire' => $avis->getCommentaire(),
+                'date de reservation' => $avis->getCreatedAt()->format("d-m-Y"),
+                'reservation' => [
+                    'id' => $reservation->getId(),
+                    'statut' => $reservation->getStatut(),
+                    'date' => $reservation->getCreatedAt()->format('d-m-Y'),
+                ],
+            ];
+        }, $avisVisible);
+
+        return new JsonResponse($data, JsonResponse::HTTP_OK);
     }
 
     #[Route(
@@ -159,6 +182,7 @@ final class AvisController extends AbstractController
     }
 
     #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[IsGranted('ROLE_EMPLOYE')]
     public function delete(int $id): JsonResponse
     {
         $avis = $this->repository->findOneBy(['id' => $id]);
