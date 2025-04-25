@@ -29,6 +29,28 @@ final class HistoriqueController extends AbstractController
         private UrlGeneratorInterface $urlGenerator
     ) {}
 
+    // Service ou méthode de réservation
+    public function reserverTrajet(Trajet $trajet, User $user)
+    {
+        // Logique pour réserver le trajet (ajouter l'utilisateur au trajet)
+        $trajet->addUser($user);
+        $this->manager->persist($trajet);
+
+        // Créer automatiquement un historique pour cette réservation
+        $historique = new Historique();
+        $historique->setStatut('Réservé');  // Le statut peut être "Réservé", "Annulé", etc.
+        $historique->setTrajet($trajet);
+        $historique->setUser($user);
+        $historique->setCreatedAt(new \DateTimeImmutable());
+
+        // Persist l'historique en base de données
+        $this->manager->persist($historique);
+        $this->manager->flush();
+
+        // Renvoyer une réponse ou effectuer d'autres actions...
+    }
+
+
     // #[Route(methods: "POST")]
     // public function new(Request $request): JsonResponse
     // {
@@ -102,22 +124,43 @@ final class HistoriqueController extends AbstractController
     #[Route(name: "list", methods: "GET")]
     public function list(): JsonResponse
     {
+        // Récupérer l'utilisateur authentifié
         $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non trouvé ou non authentifié.'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Récupérer tous les historiques associés à cet utilisateur
         $historiques = $this->repository->findBy(['user' => $user]);
 
+        // Vérifier s'il y a des historiques
+        if (empty($historiques)) {
+            return new JsonResponse(
+                ['message' => 'Aucun historique trouvé pour cet utilisateur.'],
+                Response::HTTP_OK
+            );
+        }
+
+        // Sérialiser les historiques pour les renvoyer dans la réponse JSON
         $responseData = $this->serializer->serialize(
             $historiques,
             'json',
-            ['groups' => ['historique:read']]
+            ['groups' => ['historique:read']]  // Assurez-vous que le groupe de sérialisation est bien défini
         );
 
+        // Retourner les historiques sous forme de réponse JSON
         return new JsonResponse(
             $responseData,
             Response::HTTP_OK,
             [],
-            true
+            true // Le dernier paramètre `true` indique que c'est du JSON
         );
     }
+
     // #[Route("/{id}", name: "show", methods: "GET")]
     // public function show(int $id): JsonResponse
     // {

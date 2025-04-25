@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ReservationRepository::class)]
 class Reservation
@@ -17,6 +18,14 @@ class Reservation
     #[Groups(['reservation:read', 'avis:read', 'trajet:read'])]
     private ?int $id = null;
 
+    #[Assert\Choice(
+        choices: [
+            'EN_ATTENTE',
+            'CONFIRMEE',
+            'ANNULEE'
+        ],
+        message: 'Choisissez un statut valide.'
+    )]
     #[ORM\Column(length: 255)]
     #[Groups(['reservation:read', 'avis:read'])]
     private ?string $statut = null;
@@ -37,7 +46,7 @@ class Reservation
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(cascade: ['persist'])]
     #[Groups(['reservation:read'])]
     private ?User $user = null;
 
