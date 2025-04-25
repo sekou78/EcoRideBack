@@ -89,12 +89,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $credits = null;
 
     /**
-     * @var Collection<int, Trajet>
-     */
-    #[ORM\OneToMany(targetEntity: Trajet::class, mappedBy: 'user')]
-    private Collection $trajets;
-
-    /**
      * @var Collection<int, Historique>
      */
     #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'user')]
@@ -118,14 +112,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?bool $compteSuspendu = null;
 
+    /**
+     * @var Collection<int, Trajet>
+     */
+    #[ORM\ManyToMany(targetEntity: Trajet::class, inversedBy: 'users')]
+    private Collection $trajet;
+
+    #[ORM\Column]
+    private ?bool $isPassager = null;
+
+    #[ORM\Column]
+    private ?bool $isChauffeur = null;
+
+    #[ORM\Column]
+    private ?bool $isPassagerChauffeur = null;
+
     /** @throws \Exception */
     public function __construct()
     {
         $this->apiToken = bin2hex(random_bytes(50));
-        $this->trajets = new ArrayCollection();
         $this->historiques = new ArrayCollection();
         $this->profilConducteurs = new ArrayCollection();
         $this->avis = new ArrayCollection();
+        $this->trajet = new ArrayCollection();
+    }
+
+    private function updateRoleBooleans(): void
+    {
+        $this->isPassager = in_array('ROLE_PASSAGER', $this->roles);
+        $this->isChauffeur = in_array('ROLE_CHAUFFEUR', $this->roles);
+        $this->isPassagerChauffeur = in_array('ROLE_PASSAGER_CHAUFFEUR', $this->roles);
     }
 
     public function getId(): ?int
@@ -175,8 +191,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
+        $this->updateRoleBooleans();
 
         return $this;
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return in_array($role, $this->roles);
     }
 
     /**
@@ -324,36 +346,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Trajet>
-     */
-    public function getTrajets(): Collection
-    {
-        return $this->trajets;
-    }
-
-    public function addTrajet(Trajet $trajet): static
-    {
-        if (!$this->trajets->contains($trajet)) {
-            $this->trajets->add($trajet);
-            $trajet->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeTrajet(Trajet $trajet): static
-    {
-        if ($this->trajets->removeElement($trajet)) {
-            // set the owning side to null (unless already changed)
-            if ($trajet->getUser() === $this) {
-                $trajet->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Historique>
      */
     public function getHistoriques(): Collection
@@ -463,6 +455,66 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setCompteSuspendu(bool $compteSuspendu): static
     {
         $this->compteSuspendu = $compteSuspendu;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Trajet>
+     */
+    public function getTrajet(): Collection
+    {
+        return $this->trajet;
+    }
+
+    public function addTrajet(Trajet $trajet): static
+    {
+        if (!$this->trajet->contains($trajet)) {
+            $this->trajet->add($trajet);
+        }
+
+        return $this;
+    }
+
+    public function removeTrajet(Trajet $trajet): static
+    {
+        $this->trajet->removeElement($trajet);
+
+        return $this;
+    }
+
+    public function isPassager(): ?bool
+    {
+        return $this->isPassager;
+    }
+
+    public function setIsPassager(bool $isPassager): static
+    {
+        $this->isPassager = $isPassager;
+
+        return $this;
+    }
+
+    public function isChauffeur(): ?bool
+    {
+        return $this->isChauffeur;
+    }
+
+    public function setIsChauffeur(bool $isChauffeur): static
+    {
+        $this->isChauffeur = $isChauffeur;
+
+        return $this;
+    }
+
+    public function isPassagerChauffeur(): ?bool
+    {
+        return $this->isPassagerChauffeur;
+    }
+
+    public function setIsPassagerChauffeur(bool $isPassagerChauffeur): static
+    {
+        $this->isPassagerChauffeur = $isPassagerChauffeur;
 
         return $this;
     }

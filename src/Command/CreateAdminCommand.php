@@ -38,6 +38,7 @@ class CreateAdminCommand extends Command
         $user->setPassword($this->passwordHacher->hashPassword($user, $password));
         $user->setPseudo("admin");
         $user->setRoles(["ROLE_ADMIN"]);
+        $user->setCompteSuspendu(false);
 
         $user->setCreatedAt(new \DateTimeImmutable());
 
