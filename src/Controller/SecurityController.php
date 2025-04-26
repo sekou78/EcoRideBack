@@ -209,7 +209,7 @@ final class SecurityController extends AbstractController
                 );
             if (!$image) {
                 return new JsonResponse(
-                    ['error' => 'User non trouvé'],
+                    ['error' => 'Utilisateur non trouvé'],
                     Response::HTTP_BAD_REQUEST
                 );
             }
