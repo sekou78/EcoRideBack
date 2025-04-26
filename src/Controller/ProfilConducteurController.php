@@ -8,9 +8,11 @@ use App\Repository\ProfilConducteurRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -21,36 +23,55 @@ final class ProfilConducteurController extends AbstractController
         private EntityManagerInterface $manager,
         private ProfilConducteurRepository $repository,
         private SerializerInterface $serializer,
-        private UrlGeneratorInterface $urlGenerator
+        private UrlGeneratorInterface $urlGenerator,
+        private Security $security
     ) {}
 
     #[Route(methods: "POST")]
+    #[IsGranted("ROLE_USER")]
     public function new(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
 
+        if (!$user) {
+            return new JsonResponse(
+                ['error' => 'User not authenticated'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Vérifier si l'utilisateur a le rôle "chauffeur" ou "passager_chauffeur"
+        if (
+            !in_array(
+                'ROLE_CHAUFFEUR',
+                $user->getRoles()
+            )
+            &&
+            !in_array(
+                'ROLE_PASSAGER_CHAUFFEUR',
+                $user->getRoles()
+            )
+        ) {
+            return new JsonResponse(
+                [
+                    'error' => "Vous devez être 'chauffeur' ou 'passager_chauffeur"
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Désérialiser les données du profil conducteur
         $profilConducteur = $this->serializer->deserialize(
             $request->getContent(),
             ProfilConducteur::class,
             'json',
         );
 
-        // Assigner le user
-        if ($data['user']) {
-            $user = $this->manager
-                ->getRepository(User::class)
-                ->find($data['user']);
-            if ($user) {
-                $profilConducteur->setUser($user);
-            } else {
-                return new JsonResponse(
-                    ['error' => 'user non trouvé'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-        }
+        // Associer le profil conducteur à l'utilisateur connecté
+        $profilConducteur->setUser($user);
 
-        $profilConducteur->setCreatedAt(new DateTimeImmutable());
+        $profilConducteur->setCreatedAt(new \DateTimeImmutable());
 
         $this->manager->persist($profilConducteur);
         $this->manager->flush();
@@ -76,6 +97,7 @@ final class ProfilConducteurController extends AbstractController
     }
 
     #[Route("/{id}", name: "show", methods: "GET")]
+    #[IsGranted('ROLE_USER')]
     public function show(int $id): JsonResponse
     {
         $profilConducteur = $this->repository->findOneBy(['id' => $id]);
@@ -102,80 +124,124 @@ final class ProfilConducteurController extends AbstractController
     }
 
     #[Route("/{id}", name: "edit", methods: "PUT")]
+    #[IsGranted('ROLE_USER')]
     public function edit(int $id, Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-
-        $profilConducteur = $this->repository->findOneBy(['id' => $id]);
-
-        if ($profilConducteur) {
-            $profilConducteur = $this->serializer->deserialize(
-                $request->getContent(),
-                ProfilConducteur::class,
-                'json',
-                [AbstractNormalizer::OBJECT_TO_POPULATE => $profilConducteur]
-            );
-
-            // Mettre à jour le user si fourni
-            if ($data['user']) {
-                $user = $this->manager
-                    ->getRepository(
-                        User::class
-                    )
-                    ->find(
-                        $data['user']
-                    );
-                if (!$user) {
-                    return new JsonResponse(
-                        ['error' => 'User non trouvé'],
-                        Response::HTTP_BAD_REQUEST
-                    );
-                }
-                $profilConducteur->setUser($user);
-            }
-
-            $profilConducteur->setUpdatedAt(new \DateTimeImmutable());
-
-            $this->manager->flush();
-
-            $responseData = $this->serializer->serialize(
-                $profilConducteur,
-                'json',
-                ['groups' => ['profilConducteur:read']]
-            );
-
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse(
-                $responseData,
-                Response::HTTP_OK,
-                [],
-                true
+                ['error' => 'User not authenticated'],
+                Response::HTTP_UNAUTHORIZED
             );
         }
 
+        // Vérifier si l'utilisateur a le rôle "chauffeur" ou "passager_chauffeur"
+        if (
+            !in_array('ROLE_CHAUFFEUR', $user->getRoles()) &&
+            !in_array('ROLE_PASSAGER_CHAUFFEUR', $user->getRoles())
+        ) {
+            return new JsonResponse(
+                ['error' => "Vous devez être 'chauffeur' ou 'passager_chauffeur'."],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Récupérer le profil conducteur
+        $profilConducteur = $this->repository->findOneBy(['id' => $id]);
+
+        if (!$profilConducteur) {
+            return new JsonResponse(['error' => 'ProfilConducteur not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        // Vérifier que le profil appartient bien à l'utilisateur connecté
+        if ($profilConducteur->getUser()?->getId() !== $user->getId()) {
+            return new JsonResponse(
+                ['error' => "Vous n'avez pas accès à ce profil pour le modifier."],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Désérialiser et mettre à jour l'objet existant
+        $this->serializer->deserialize(
+            $request->getContent(),
+            ProfilConducteur::class,
+            'json',
+            [AbstractNormalizer::OBJECT_TO_POPULATE => $profilConducteur]
+        );
+
+        // Mettre à jour la date de modification
+        $profilConducteur->setUpdatedAt(new \DateTimeImmutable());
+
+        $this->manager->flush();
+
+        $responseData = $this->serializer->serialize(
+            $profilConducteur,
+            'json',
+            ['groups' => ['profilConducteur:read']]
+        );
+
         return new JsonResponse(
-            null,
-            Response::HTTP_NOT_FOUND
+            $responseData,
+            Response::HTTP_OK,
+            [],
+            true
         );
     }
 
     #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[IsGranted('ROLE_USER')]
     public function delete(int $id): JsonResponse
     {
-        $profilConducteur = $this->repository->findOneBy(['id' => $id]);
-
-        if ($profilConducteur) {
-            $this->manager->remove($profilConducteur);
-            $this->manager->flush();
-
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse(
-                ["message" => "ProfilConducteur supprimé"],
-                Response::HTTP_OK,
+                ['error' => 'User not authenticated'],
+                Response::HTTP_UNAUTHORIZED
             );
         }
 
+        // Vérifier si l'utilisateur a le rôle "chauffeur" ou "passager_chauffeur"
+        if (
+            !in_array('ROLE_CHAUFFEUR', $user->getRoles()) &&
+            !in_array('ROLE_PASSAGER_CHAUFFEUR', $user->getRoles())
+        ) {
+            return new JsonResponse(
+                ['error' => "Vous devez être 'chauffeur' ou 'passager_chauffeur'."],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Récupérer le profil conducteur par ID
+        $profilConducteur = $this->repository->findOneBy(['id' => $id]);
+
+        if (!$profilConducteur) {
+            return new JsonResponse(
+                [
+                    'error' => 'ProfilConducteur non trouvé'
+                ],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Vérifier que l'utilisateur connecté est bien le propriétaire du profil
+        if ($profilConducteur->getUser()?->getId() !== $user->getId()) {
+            return new JsonResponse(
+                [
+                    'error' => "Vous n'avez pas l'autorisation de supprimer ce profil."
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Supprimer le profil conducteur
+        $this->manager->remove($profilConducteur);
+        $this->manager->flush();
+
         return new JsonResponse(
-            null,
-            Response::HTTP_NOT_FOUND
+            ['message' => 'ProfilConducteur supprimé avec succès.'],
+            Response::HTTP_OK
         );
     }
 }
