@@ -6,11 +6,11 @@
         - Symfony CLI
         - Composer
         - Git
-        - PHP extension : Iconv, JSON, PCRE, Session, Tokenizer et les applications habituelles de Symfony
 
 # Pour vérifier les exigences minimales pour le projet
 
-    * $ symfony check:requirements
+    * PHP extension : Iconv, JSON, PCRE, Session, Tokenizer et les applications habituelles de Symfony
+        - $ symfony check:requirements
 
 # Mise à jour du projet
 
@@ -20,3 +20,10 @@
 # Lancement du serveur local symfony
 
     * $ symfony server:start
+
+# Création de la BDD
+
+    * Mise en place du fichier .env.local et paramétrage
+        - $ cp .env .env.local
+        - $ php bin/console doctrine:database:create
+        - $ php bin/console doctrine:migrations:migrate
