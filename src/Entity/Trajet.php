@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TrajetRepository::class)]
 class Trajet
@@ -46,6 +47,14 @@ class Trajet
     #[Groups(['trajet:read'])]
     private ?int $nombrePlacesDisponible = null;
 
+    #[Assert\Choice(
+        choices: [
+            'EN_ATTENTE',
+            'EN_COURS',
+            'TERMINEE',
+        ],
+        message: 'Le statut doit être "EN_ATTENTE", "EN_COURS" ou "TERMINEE".'
+    )]
     #[ORM\Column(length: 255)]
     #[Groups(['reservation:read', 'historique:read', 'trajet:read'])]
     private ?string $statut = null;

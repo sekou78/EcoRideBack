@@ -35,6 +35,9 @@ final class SecurityController extends AbstractController
             'json'
         );
 
+        //Chaque utilisateur beneficie de 20 crédits à la création du compte
+        $user->setCredits(20);
+
         // Etat du compte par défaut
         $user->setCompteSuspendu(false);
 

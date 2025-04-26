@@ -67,7 +67,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank(message: 'Veuillez renseigner un pseudo.')]
     #[Assert\Length(min: 2, max: 50)]
     #[ORM\Column(length: 50)]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read', 'avis:read'])]
+    #[Groups(
+        [
+            'trajet:read',
+            'reservation:read',
+            'historique:read',
+            'profilConducteur:read',
+            'employes:read',
+            'admin:read',
+            'avis:read'
+        ]
+    )]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -335,13 +345,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getCredits(): ?int
     {
-        return $this->credits;
+        return $this->credits ?? 0;
     }
 
     public function setCredits(int $credits): static
     {
         $this->credits = $credits;
 
+        return $this;
+    }
+
+    public function addCredits(int $amount): self
+    {
+        $this->credits = ($this->credits ?? 0) + $amount;
         return $this;
     }
 

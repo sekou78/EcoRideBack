@@ -24,7 +24,7 @@ class Reservation
             'CONFIRMEE',
             'ANNULEE'
         ],
-        message: 'Choisissez un statut valide.'
+        message: 'Le statut doit être "EN_ATTENTE", "CONFIRMEE" ou "ANNULEE".'
     )]
     #[ORM\Column(length: 255)]
     #[Groups(['reservation:read', 'avis:read'])]

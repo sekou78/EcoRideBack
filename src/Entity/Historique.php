@@ -15,6 +15,10 @@ class Historique
     #[Groups(['historique:read'])]
     private ?int $id = null;
 
+    #[ORM\Column(length: 50)]
+    #[Groups(['historique:read'])]
+    private ?string $role = null;
+
     #[ORM\Column(length: 255)]
     #[Groups(['historique:read'])]
     private ?string $statut = null;
@@ -94,6 +98,18 @@ class Historique
     public function setUser(?User $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    public function getRole(): ?string
+    {
+        return $this->role;
+    }
+
+    public function setRole(string $role): static
+    {
+        $this->role = $role;
 
         return $this;
     }

@@ -19,359 +19,300 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route("api/historique", name: "app_api_historique_")]
-#[IsGranted('ROLE_USER')]
 final class HistoriqueController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $manager,
         private HistoriqueRepository $repository,
         private SerializerInterface $serializer,
-        private UrlGeneratorInterface $urlGenerator
+        private UrlGeneratorInterface $urlGenerator,
+        private Security $security
     ) {}
 
-    // Service ou méthode de réservation
-    public function reserverTrajet(Trajet $trajet, User $user)
+    #[Route(methods: 'POST')]
+    public function new(Request $request): JsonResponse
     {
-        // Logique pour réserver le trajet (ajouter l'utilisateur au trajet)
-        $trajet->addUser($user);
-        $this->manager->persist($trajet);
-
-        // Créer automatiquement un historique pour cette réservation
-        $historique = new Historique();
-        $historique->setStatut('Réservé');  // Le statut peut être "Réservé", "Annulé", etc.
-        $historique->setTrajet($trajet);
-        $historique->setUser($user);
-        $historique->setCreatedAt(new \DateTimeImmutable());
-
-        // Persist l'historique en base de données
-        $this->manager->persist($historique);
-        $this->manager->flush();
-
-        // Renvoyer une réponse ou effectuer d'autres actions...
-    }
-
-
-    // #[Route(methods: "POST")]
-    // public function new(Request $request): JsonResponse
-    // {
-    //     $data = json_decode(
-    //         $request->getContent(),
-    //         true
-    //     );
-
-    //     $historique = $this->serializer->deserialize(
-    //         $request->getContent(),
-    //         Historique::class,
-    //         'json',
-    //     );
-
-    //     // Assigner le trajet à la réservation
-    //     if ($data['trajet']) {
-    //         $trajet = $this->manager
-    //             ->getRepository(Trajet::class)
-    //             ->find($data['trajet']);
-    //         if ($trajet) {
-    //             $historique->setTrajet($trajet);
-    //         } else {
-    //             return new JsonResponse(
-    //                 ['error' => 'trajet non trouvé'],
-    //                 Response::HTTP_BAD_REQUEST
-    //             );
-    //         }
-    //     }
-
-    //     // Assigner le user connecté
-    //     $historique->setUser($this->getUser());
-    //     // if ($data['user']) {
-    //     //     $user = $this->manager
-    //     //         ->getRepository(User::class)
-    //     //         ->find($data['user']);
-    //     //     if ($user) {
-    //     //         $historique->setUser($user);
-    //     //     } else {
-    //     //         return new JsonResponse(
-    //     //             ['error' => 'user non trouvé'],
-    //     //             Response::HTTP_BAD_REQUEST
-    //     //         );
-    //     //     }
-    //     // }
-
-    //     $historique->setCreatedAt(new DateTimeImmutable());
-
-    //     $this->manager->persist($historique);
-    //     $this->manager->flush();
-
-    //     $responseData = $this->serializer->serialize(
-    //         $historique,
-    //         'json',
-    //         ['groups' => ['historique:read']]
-    //     );
-
-    //     $location = $this->urlGenerator->generate(
-    //         'app_api_historique_show',
-    //         ['id' => $historique->getId()],
-    //         UrlGeneratorInterface::ABSOLUTE_URL,
-    //     );
-
-    //     return new JsonResponse(
-    //         $responseData,
-    //         Response::HTTP_CREATED,
-    //         ['Location' => $location],
-    //         true,
-    //     );
-    // }
-
-    #[Route(name: "list", methods: "GET")]
-    public function list(): JsonResponse
-    {
-        // Récupérer l'utilisateur authentifié
-        $user = $this->getUser();
+        $user = $this->security->getUser();
 
         if (!$user) {
             return new JsonResponse(
-                ['error' => 'Utilisateur non trouvé ou non authentifié.'],
+                ['error' => 'Utilisateur non authentifié'],
                 Response::HTTP_UNAUTHORIZED
             );
         }
 
-        // Récupérer tous les historiques associés à cet utilisateur
-        $historiques = $this->repository->findBy(['user' => $user]);
+        $data = json_decode(
+            $request->getContent(),
+            true
+        );
 
-        // Vérifier s'il y a des historiques
-        if (empty($historiques)) {
+        if (!$data || empty($data['trajet'])) {
             return new JsonResponse(
-                ['message' => 'Aucun historique trouvé pour cet utilisateur.'],
-                Response::HTTP_OK
+                ['error' => 'Le champ "trajet" est obligatoire'],
+                Response::HTTP_BAD_REQUEST
             );
         }
 
-        // Sérialiser les historiques pour les renvoyer dans la réponse JSON
+        // Récupérer le trajet
+        $trajet = $this->manager
+            ->getRepository(Trajet::class)
+            ->find($data['trajet']);
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Vérifier si l'utilisateur est le chauffeur (créateur du trajet)
+        $isChauffeur = $trajet->getChauffeur() === $user;
+
+        // Vérifier si l'utilisateur est un passager
+        $reservations = $trajet->getReservations();
+        $isPassager = false;
+        foreach ($reservations as $reservation) {
+            if ($reservation->getUser() === $user) {
+                $isPassager = true;
+                break;
+            }
+        }
+
+        // Si l'utilisateur n'est ni chauffeur ni passager, il n'a pas le droit
+        if (!$isChauffeur && !$isPassager) {
+            return new JsonResponse(
+                [
+                    'error' => 'Vous ne pouvez pas créer un historique pour ce trajet'
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Créer l'historique
+        $historique = new Historique();
+        $historique->setTrajet($trajet);
+
+        $historique->setCreatedAt(new \DateTimeImmutable());
+
+        $historique->setUser($user);
+
+        $historique->setStatut($trajet->getStatut());
+
+        // Assigner le rôle
+        if ($isChauffeur) {
+            $historique->setRole('chauffeur');
+        } elseif ($isPassager) {
+            $historique->setRole('passager');
+        }
+
+        $this->manager->persist($historique);
+        $this->manager->flush();
+
+        $responseData = $this->serializer->serialize(
+            $historique,
+            'json',
+            ['groups' => ['historique:read']]
+        );
+
+        return new JsonResponse(
+            $responseData,
+            Response::HTTP_CREATED,
+            [],
+            true
+        );
+    }
+
+    #[Route('/filter', methods: 'GET')]
+    public function filter(Request $request): JsonResponse
+    {
+        $user = $this->security->getUser();
+
+        if (!$user) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non authentifié'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $statut = $request->query->get('statut');  // ?statut=EN_ATTENTE
+        $trajetId = $request->query->get('trajet'); // ?trajet=3
+
+        $criteria = ['user' => $user];
+
+        if ($statut) {
+            $criteria['statut'] = $statut;
+        }
+
+        if ($trajetId) {
+            $criteria['trajet'] = $trajetId;
+        }
+
+        $historiques = $this->repository->findBy($criteria);
+
+        if (empty($historiques)) {
+            return new JsonResponse(
+                [
+                    'message' => 'Aucun historique trouvé'
+                ],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
         $responseData = $this->serializer->serialize(
             $historiques,
             'json',
-            ['groups' => ['historique:read']]  // Assurez-vous que le groupe de sérialisation est bien défini
+            ['groups' => ['historique:read']]
         );
 
-        // Retourner les historiques sous forme de réponse JSON
         return new JsonResponse(
             $responseData,
             Response::HTTP_OK,
             [],
-            true // Le dernier paramètre `true` indique que c'est du JSON
+            true
         );
     }
 
-    // #[Route("/{id}", name: "show", methods: "GET")]
-    // public function show(int $id): JsonResponse
-    // {
-    //     $historique = $this->repository->findOneBy(['id' => $id]);
-
-    //     if ($historique) {
-    //         $responseData = $this->serializer->serialize(
-    //             $historique,
-    //             'json',
-    //             ['groups' => ['historique:read']]
-    //         );
-
-    //         return new JsonResponse(
-    //             $responseData,
-    //             Response::HTTP_OK,
-    //             [],
-    //             true
-    //         );
-    //     }
-
-    //     return new JsonResponse(
-    //         null,
-    //         Response::HTTP_NOT_FOUND
-    //     );
-    // }
-
-    // #[Route("/{id}", name: "edit", methods: "PUT")]
-    // public function edit(int $id, Request $request): JsonResponse
-    // {
-    //     $data = json_decode(
-    //         $request->getContent(),
-    //         true
-    //     );
-
-    //     // Récupérer la réservation existante
-    //     $historique = $this->manager
-    //         ->getRepository(
-    //             Historique::class
-    //         )
-    //         ->findOneBy(
-    //             ['id' => $id]
-    //         );
-
-    //     if (!$historique) {
-    //         return new JsonResponse(
-    //             ['error' => 'Réservation non trouvée'],
-    //             Response::HTTP_NOT_FOUND
-    //         );
-    //     }
-
-    //     if ($historique->getUser() !== $this->getUser()) {
-    //         return new JsonResponse(['error' => 'Accès interdit'], Response::HTTP_FORBIDDEN);
-    //     }
-
-    //     // Mettre à jour le statut si présent
-    //     if ($data['statut']) {
-    //         $historique->setStatut($data['statut']);
-    //     }
-
-    //     // Mettre à jour le trajet si fourni
-    //     if ($data['trajet']) {
-    //         $trajet = $this->manager
-    //             ->getRepository(
-    //                 Trajet::class
-    //             )
-    //             ->find(
-    //                 $data['trajet']
-    //             );
-    //         if (!$trajet) {
-    //             return new JsonResponse(
-    //                 ['error' => 'Trajet non trouvé'],
-    //                 Response::HTTP_BAD_REQUEST
-    //             );
-    //         }
-    //         $historique->setTrajet($trajet);
-    //     }
-
-    //     // Mettre à jour le user si fourni
-    //     if ($data['user']) {
-    //         $user = $this->manager
-    //             ->getRepository(
-    //                 User::class
-    //             )
-    //             ->find(
-    //                 $data['user']
-    //             );
-    //         if (!$user) {
-    //             return new JsonResponse(
-    //                 ['error' => 'User non trouvé'],
-    //                 Response::HTTP_BAD_REQUEST
-    //             );
-    //         }
-    //         $historique->setUser($user);
-    //     }
-
-    //     $historique->setUpdatedAt(new \DateTimeImmutable());
-
-    //     $this->manager->flush();
-
-    //     $responseData = $this->serializer->serialize(
-    //         $historique,
-    //         'json',
-    //         ['groups' => ['historique:read']]
-    //     );
-
-    //     return new JsonResponse(
-    //         $responseData,
-    //         Response::HTTP_OK,
-    //         [],
-    //         true
-    //     );
-    // }
-
-
-
-
-
-
-    // #[Route("/{id}", name: "delete", methods: "DELETE")]
-    // public function delete(int $id): JsonResponse
-    // {
-    //     $historique = $this->repository->findOneBy(['id' => $id]);
-
-    //     if ($historique->getUser() !== $this->getUser()) {
-    //         return new JsonResponse(['error' => 'Accès interdit'], Response::HTTP_FORBIDDEN);
-    //     }
-
-    //     if ($historique) {
-    //         $this->manager->remove($historique);
-    //         $this->manager->flush();
-
-    //         return new JsonResponse(
-    //             ["message" => "Historique supprimé"],
-    //             Response::HTTP_OK,
-    //         );
-    //     }
-
-    //     return new JsonResponse(
-    //         null,
-    //         Response::HTTP_NOT_FOUND
-    //     );
-    // }
-
-    #[Route('/cancel/{id}', name: 'cancel', methods: 'PATCH')]
-    public function cancel(int $id, Security $security, MailerInterface $mailer): JsonResponse
+    #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[IsGranted('ROLE_ADMIN')]
+    public function delete(int $id): JsonResponse
     {
-        $user = $security->getUser();
+        $historique = $this->repository->findOneBy(['id' => $id]);
 
-        /** @var User $user */
+        if ($historique) {
+            $this->manager->remove($historique);
+
+            $this->manager->flush();
+
+            return new JsonResponse(
+                ["message" => "Historique supprimé"],
+                Response::HTTP_OK,
+            );
+        }
+
+        return new JsonResponse(
+            null,
+            Response::HTTP_NOT_FOUND
+        );
+    }
+
+    #[Route('/cancel', methods: 'POST')]
+    public function cancel(Request $request, MailerInterface $mailer): JsonResponse
+    {
+        $user = $this->security->getUser();
         if (!$user instanceof User) {
-            return new JsonResponse(['message' => 'Utilisateur non valide'], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(
+                ['error' => 'Utilisateur non authentifié'],
+                Response::HTTP_UNAUTHORIZED
+            );
         }
 
-        $historique = $this->repository->find($id);
-
-        if (!$historique) {
-            return new JsonResponse(['message' => 'Historique non trouvé'], Response::HTTP_NOT_FOUND);
+        $data = json_decode($request->getContent(), true);
+        if (!$data || empty($data['trajet'])) {
+            return new JsonResponse(
+                [
+                    'error' => 'Le champ "trajet" est obligatoire'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
         }
 
-        if ($historique->getUser() !== $user) {
-            return new JsonResponse(['message' => 'Accès interdit'], Response::HTTP_FORBIDDEN);
-        }
-
-        $trajet = $historique->getTrajet();
-
+        $trajet = $this->manager
+            ->getRepository(Trajet::class)
+            ->find($data['trajet']);
         if (!$trajet) {
-            return new JsonResponse(['message' => 'Aucun trajet associé'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(
+                [
+                    'error' => 'Trajet non trouvé'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
         }
 
-        $userRoles = $user->getRoles();
-        $isChauffeur = in_array('ROLE_CHAUFFEUR', $userRoles, true);
-        $isPassager = in_array('ROLE_PASSAGER', $userRoles, true);
+        $isChauffeur = $trajet->getChauffeur() === $user;
+        $reservations = $trajet->getReservations();
+        $isPassager = false;
+        $userReservation = null;
 
-        if ($isChauffeur && $trajet->getUsers() === $user) {
-            // 🚗 Le chauffeur annule : tous les passagers sont remboursés
-            foreach ($trajet->getUsers() as $passager) {
-                $passager->setCredits($passager->getCredits() + $trajet->getPrix());
-                $trajet->removeUser($passager);
+        foreach ($reservations as $reservation) {
+            if ($reservation->getUser() === $user) {
+                $isPassager = true;
+                $userReservation = $reservation;
+                break;
+            }
+        }
+
+        if (!$isChauffeur && !$isPassager) {
+            return new JsonResponse(
+                [
+                    'error' => "Vous n'êtes pas autorisé à annuler ce trajet"
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        $montant = $trajet->getPrix() ?? 0;
+
+        if ($isChauffeur) {
+            $trajet->setStatut('ANNULEE');
+
+            foreach ($reservations as $reservation) {
+                $passager = $reservation->getUser();
 
                 $email = (new Email())
-                    ->from('noreply@tonsite.com')
+                    ->from('no-reply@tonsite.com')
                     ->to($passager->getEmail())
-                    ->subject('Trajet annulé')
-                    ->text(sprintf(
-                        'Le trajet de %s à %s a été annulé par le chauffeur %s.',
-                        $trajet->getDepart(),
-                        $trajet->getDestination(),
-                        $user->getPseudo()
-                    ));
+                    ->subject('Annulation du covoiturage')
+                    ->html("
+                Bonjour {$passager->getPseudo()},<br><br>
+                Nous vous informons que votre trajet a été annulé par le chauffeur.<br><br>
+                Merci de votre compréhension.
+            ");
 
                 $mailer->send($email);
+
+                //Remboursement
+                if ($montant > 0) {
+                    $passager->setCredits($passager->getCredits() + $montant);
+                    $this->manager->persist($passager);
+                }
+
+                //Retirer le passager du trajet
+                if ($trajet->getUsers()->contains($passager)) {
+                    $trajet->removeUser($passager);
+                }
+
+                //Supprimer la réservation
+                $trajet->removeReservation($reservation);
+                $this->manager->remove($reservation);
+            }
+        } elseif ($isPassager && $userReservation) {
+            //upprimer sa réservation
+            $trajet->removeReservation($userReservation);
+            $this->manager->remove($userReservation);
+
+            //Remboursement
+            if ($montant > 0) {
+                $user->addCredits($montant);
+                $this->manager->persist($user);
             }
 
-            $this->manager->remove($trajet);
-            $message = 'Trajet annulé avec succès par le chauffeur.';
-        } elseif ($isPassager && $trajet->getUsers()->contains($user)) {
-            // 🧍 Le passager annule sa participation
-            $trajet->removeUser($user);
-            $user->setCredits($user->getCredits() + $trajet->getPrix());
-            $trajet->setNbPlaces($trajet->getNbPlaces() + 1);
-            $message = 'Votre participation au trajet a été annulée.';
-        } else {
-            return new JsonResponse(['message' => 'Action non autorisée ou vous ne participez pas à ce trajet'], Response::HTTP_FORBIDDEN);
-        }
+            //Retirer le passager du trajet
+            if ($trajet->getUsers()->contains($user)) {
+                $trajet->removeUser($user);
+            }
 
-        // Mise à jour de l'historique (on évite la suppression)
-        $historique->setStatut('annulé');
-        $historique->setUpdatedAt(new \DateTimeImmutable());
+            //Libérer une place
+            $trajet->setNombrePlacesDisponible(
+                $trajet->getNombrePlacesDisponible() + 1
+            );
+        }
 
         $this->manager->flush();
 
-        return new JsonResponse(['message' => $message], Response::HTTP_OK);
+        return new JsonResponse(
+            [
+                'message' => "Annulation effectuée avec succès."
+            ],
+            Response::HTTP_OK
+        );
     }
 }

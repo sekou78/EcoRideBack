@@ -44,7 +44,6 @@ final class ReservationController extends AbstractController
         );
 
         $errors = $this->validator->validate($reservation);
-
         if (count($errors) > 0) {
             $errorMessages = [];
             foreach ($errors as $error) {
@@ -56,47 +55,104 @@ final class ReservationController extends AbstractController
             );
         }
 
-        // Assigner le trajet à la réservation
+        // Récupérer le trajet
         if (isset($data['trajet'])) {
             $trajet = $this->manager
                 ->getRepository(Trajet::class)
                 ->find($data['trajet']);
-            if ($trajet) {
-                $reservation->setTrajet($trajet);
-            } else {
+            if (!$trajet) {
                 return new JsonResponse(
                     ['error' => 'Trajet non trouvé'],
                     Response::HTTP_BAD_REQUEST
                 );
             }
+
+            // Vérifier si le nombre de places disponibles est suffisant
+            $placesDisponibles = $trajet->getNombrePlacesDisponible();
+            $reservationsCount = count($trajet->getReservations());
+
+            if ($reservationsCount >= $placesDisponibles) {
+                return new JsonResponse(
+                    [
+                        'error' => "Il n'y a plus de places disponibles pour ce trajet."
+                    ],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+
+            // Récupérer l'utilisateur authentifié
+            $user = $this->security->getUser();
+
+            // Vérifier les anciennes réservations de cet utilisateur pour ce trajet
+            $ancienneReservation = $this->manager
+                ->getRepository(Reservation::class)
+                ->findOneBy([
+                    'trajet' => $trajet,
+                    'user' => $user
+                ]);
+
+            if ($ancienneReservation) {
+                $statutReservation = $ancienneReservation->getStatut();
+                $statutTrajet = $trajet->getStatut();
+
+                if (
+                    !in_array(
+                        $statutReservation,
+                        [
+                            'ANNULEE'
+                        ]
+                    )
+                    &&
+                    $statutTrajet !== 'TERMINEE'
+                ) {
+                    return new JsonResponse(
+                        [
+                            'error' => "Vous avez déjà réservé un trajet."
+                        ],
+                        Response::HTTP_BAD_REQUEST
+                    );
+                }
+            }
+
+            // Assigner l'utilisateur et le trajet à la nouvelle réservation
+            $reservation->setUser($user);
+            $reservation->setTrajet($trajet);
+            $reservation->setCreatedAt(new \DateTimeImmutable());
+
+            // Ajouter l'utilisateur aux passagers du trajet s'il n'y est pas encore
+            if (!$trajet->getUsers()->contains($user)) {
+                $trajet->addUser($user);
+            }
+
+            // Persister la réservation et le trajet
+            $this->manager->persist($reservation);
+            $this->manager->persist($trajet);
+            $this->manager->flush();
+
+            // Préparer la réponse
+            $responseData = $this->serializer->serialize(
+                $reservation,
+                'json',
+                ['groups' => ['reservation:read']]
+            );
+
+            $location = $this->urlGenerator->generate(
+                'app_api_reservation_show',
+                ['id' => $reservation->getId()],
+                UrlGeneratorInterface::ABSOLUTE_URL
+            );
+
+            return new JsonResponse(
+                $responseData,
+                Response::HTTP_CREATED,
+                ['Location' => $location],
+                true
+            );
         }
 
-        // Récupérer l'utilisateur authentifié
-        $user = $this->security->getUser();
-        $reservation->setUser($user);
-
-        $reservation->setCreatedAt(new \DateTimeImmutable());
-
-        $this->manager->persist($reservation);
-        $this->manager->flush();
-
-        $responseData = $this->serializer->serialize(
-            $reservation,
-            'json',
-            ['groups' => ['reservation:read']]
-        );
-
-        $location = $this->urlGenerator->generate(
-            'app_api_reservation_show',
-            ['id' => $reservation->getId()],
-            UrlGeneratorInterface::ABSOLUTE_URL
-        );
-
         return new JsonResponse(
-            $responseData,
-            Response::HTTP_CREATED,
-            ['Location' => $location],
-            true
+            ['error' => 'Données invalides'],
+            Response::HTTP_BAD_REQUEST
         );
     }
 
@@ -149,26 +205,35 @@ final class ReservationController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function edit(int $id, Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-
         $reservation = $this->manager
             ->getRepository(Reservation::class)
             ->findOneBy(['id' => $id]);
 
         if (!$reservation) {
             return new JsonResponse(
-                ['error' => 'Réservation non trouvée'],
+                ['error' => 'Réservation non trouvée.'],
                 Response::HTTP_NOT_FOUND
             );
         }
 
-        $updatedReservation = $this->serializer->deserialize(
-            $request->getContent(),
-            Reservation::class,
-            'json'
-        );
+        // Vérifier que l'utilisateur connecté est le créateur de la réservation
+        $user = $this->security->getUser();
 
-        $errors = $this->validator->validate($updatedReservation);
+        if ($reservation->getUser() !== $user) {
+            return new JsonResponse(
+                ['error' => "Vous n'êtes pas autorisé à modifier cette réservation."],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Mettre à jour les données
+        $data = json_decode($request->getContent(), true);
+
+        if (isset($data['statut'])) {
+            $reservation->setStatut($data['statut']);
+        }
+
+        $errors = $this->validator->validate($reservation);
         if (count($errors) > 0) {
             $errorMessages = [];
             foreach ($errors as $error) {
@@ -180,31 +245,7 @@ final class ReservationController extends AbstractController
             );
         }
 
-        // Mettre à jour les propriétés de la réservation
-        if ($data['statut']) {
-            $reservation->setStatut($data['statut']);
-        }
-
-        if ($data['trajet']) {
-            $trajet = $this->manager
-                ->getRepository(Trajet::class)
-                ->find($data['trajet']);
-            if ($trajet) {
-                $reservation->setTrajet($trajet);
-            } else {
-                return new JsonResponse(
-                    ['error' => 'Trajet non trouvé'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-        }
-
-        // Récupérer l'utilisateur authentifié
-        $user = $this->security->getUser();
-        $reservation->setUser($user);
-
-        $reservation->setUpdatedAt(new \DateTimeImmutable());
-
+        $this->manager->persist($reservation);
         $this->manager->flush();
 
         $responseData = $this->serializer->serialize(
