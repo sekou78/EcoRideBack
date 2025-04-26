@@ -5,11 +5,11 @@ namespace App\Entity;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
@@ -21,18 +21,37 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read', 'avis:read'])]
     private ?int $id = null;
 
+    #[Assert\NotBlank(message: 'Veuillez renseigner un email.')]
+    #[Assert\Email(message: 'Veuillez renseigner un email valide.')]
     #[ORM\Column(length: 180)]
     private ?string $email = null;
 
     /**
      * @var list<string> The user roles
      */
+    #[Assert\NotBlank]
+    #[Assert\All([
+        new Assert\Choice(
+            choices: [
+                'ROLE_PASSAGER',
+                'ROLE_CHAUFFEUR',
+                'ROLE_PASSAGER_CHAUFFEUR',
+            ],
+            message: 'Choisissez un rôle valide.'
+        )
+    ])]
     #[ORM\Column]
     private array $roles = [];
 
     /**
      * @var string The hashed password
      */
+    #[Assert\NotBlank(message: 'Veuillez renseigner un mot de passe.')]
+    #[Assert\Length(min: 8, minMessage: "Le mot de passe n'est pas conforme !
+          Au moins 8 caractères comprenant: 
+          1 lettre majuscule,
+          1 lettre miniscule,
+          1chiffre et 1 caractères sepéciale.")]
     #[ORM\Column]
     private ?string $password = null;
 
@@ -45,8 +64,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255)]
     private ?string $apiToken = null;
 
+    #[Assert\NotBlank(message: 'Veuillez renseigner un pseudo.')]
+    #[Assert\Length(min: 2, max: 50)]
     #[ORM\Column(length: 50)]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read', 'avis:read'])]
+    #[Groups(
+        [
+            'trajet:read',
+            'reservation:read',
+            'historique:read',
+            'profilConducteur:read',
+            'employes:read',
+            'admin:read',
+            'avis:read'
+        ]
+    )]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -68,12 +99,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $credits = null;
 
     /**
-     * @var Collection<int, Trajet>
-     */
-    #[ORM\OneToMany(targetEntity: Trajet::class, mappedBy: 'user')]
-    private Collection $trajets;
-
-    /**
      * @var Collection<int, Historique>
      */
     #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'user')]
@@ -86,29 +111,44 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $profilConducteurs;
 
     /**
-     * @var Collection<int, Employes>
-     */
-    #[ORM\OneToMany(targetEntity: Employes::class, mappedBy: 'user')]
-    private Collection $employes;
-
-    /**
      * @var Collection<int, Avis>
      */
     #[ORM\OneToMany(targetEntity: Avis::class, mappedBy: 'user')]
     private Collection $avis;
 
-    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
-    private ?Image $image = null;
+    #[ORM\Column]
+    private ?bool $compteSuspendu = null;
+
+    /**
+     * @var Collection<int, Trajet>
+     */
+    #[ORM\ManyToMany(targetEntity: Trajet::class, inversedBy: 'users')]
+    private Collection $trajet;
+
+    #[ORM\Column]
+    private ?bool $isPassager = null;
+
+    #[ORM\Column]
+    private ?bool $isChauffeur = null;
+
+    #[ORM\Column]
+    private ?bool $isPassagerChauffeur = null;
 
     /** @throws \Exception */
     public function __construct()
     {
         $this->apiToken = bin2hex(random_bytes(50));
-        $this->trajets = new ArrayCollection();
         $this->historiques = new ArrayCollection();
         $this->profilConducteurs = new ArrayCollection();
-        $this->employes = new ArrayCollection();
         $this->avis = new ArrayCollection();
+        $this->trajet = new ArrayCollection();
+    }
+
+    private function updateRoleBooleans(): void
+    {
+        $this->isPassager = in_array('ROLE_PASSAGER', $this->roles);
+        $this->isChauffeur = in_array('ROLE_CHAUFFEUR', $this->roles);
+        $this->isPassagerChauffeur = in_array('ROLE_PASSAGER_CHAUFFEUR', $this->roles);
     }
 
     public function getId(): ?int
@@ -158,8 +198,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
+        $this->updateRoleBooleans();
 
         return $this;
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return in_array($role, $this->roles);
     }
 
     /**
@@ -296,7 +342,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getCredits(): ?int
     {
-        return $this->credits;
+        return $this->credits ?? 0;
     }
 
     public function setCredits(int $credits): static
@@ -306,33 +352,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    /**
-     * @return Collection<int, Trajet>
-     */
-    public function getTrajets(): Collection
+    public function addCredits(int $amount): self
     {
-        return $this->trajets;
-    }
-
-    public function addTrajet(Trajet $trajet): static
-    {
-        if (!$this->trajets->contains($trajet)) {
-            $this->trajets->add($trajet);
-            $trajet->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeTrajet(Trajet $trajet): static
-    {
-        if ($this->trajets->removeElement($trajet)) {
-            // set the owning side to null (unless already changed)
-            if ($trajet->getUser() === $this) {
-                $trajet->setUser(null);
-            }
-        }
-
+        $this->credits = ($this->credits ?? 0) + $amount;
         return $this;
     }
 
@@ -397,36 +419,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Employes>
-     */
-    public function getEmployes(): Collection
-    {
-        return $this->employes;
-    }
-
-    public function addEmploye(Employes $employe): static
-    {
-        if (!$this->employes->contains($employe)) {
-            $this->employes->add($employe);
-            $employe->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeEmploye(Employes $employe): static
-    {
-        if ($this->employes->removeElement($employe)) {
-            // set the owning side to null (unless already changed)
-            if ($employe->getUser() === $this) {
-                $employe->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Avis>
      */
     public function getAvis(): Collection
@@ -456,14 +448,74 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getImage(): ?Image
+    public function isCompteSuspendu(): ?bool
     {
-        return $this->image;
+        return $this->compteSuspendu;
     }
 
-    public function setImage(?Image $image): static
+    public function setCompteSuspendu(bool $compteSuspendu): static
     {
-        $this->image = $image;
+        $this->compteSuspendu = $compteSuspendu;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Trajet>
+     */
+    public function getTrajet(): Collection
+    {
+        return $this->trajet;
+    }
+
+    public function addTrajet(Trajet $trajet): static
+    {
+        if (!$this->trajet->contains($trajet)) {
+            $this->trajet->add($trajet);
+        }
+
+        return $this;
+    }
+
+    public function removeTrajet(Trajet $trajet): static
+    {
+        $this->trajet->removeElement($trajet);
+
+        return $this;
+    }
+
+    public function isPassager(): ?bool
+    {
+        return $this->isPassager;
+    }
+
+    public function setIsPassager(bool $isPassager): static
+    {
+        $this->isPassager = $isPassager;
+
+        return $this;
+    }
+
+    public function isChauffeur(): ?bool
+    {
+        return $this->isChauffeur;
+    }
+
+    public function setIsChauffeur(bool $isChauffeur): static
+    {
+        $this->isChauffeur = $isChauffeur;
+
+        return $this;
+    }
+
+    public function isPassagerChauffeur(): ?bool
+    {
+        return $this->isPassagerChauffeur;
+    }
+
+    public function setIsPassagerChauffeur(bool $isPassagerChauffeur): static
+    {
+        $this->isPassagerChauffeur = $isPassagerChauffeur;
 
         return $this;
     }

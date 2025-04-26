@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TrajetRepository::class)]
 class Trajet
@@ -46,6 +47,14 @@ class Trajet
     #[Groups(['trajet:read'])]
     private ?int $nombrePlacesDisponible = null;
 
+    #[Assert\Choice(
+        choices: [
+            'EN_ATTENTE',
+            'EN_COURS',
+            'TERMINEE',
+        ],
+        message: 'Le statut doit être "EN_ATTENTE", "EN_COURS" ou "TERMINEE".'
+    )]
     #[ORM\Column(length: 255)]
     #[Groups(['reservation:read', 'historique:read', 'trajet:read'])]
     private ?string $statut = null;
@@ -69,14 +78,66 @@ class Trajet
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\ManyToOne(inversedBy: 'trajets')]
-    #[Groups(['trajet:read'])]
-    private ?User $user = null;
+    /**
+     * @var Collection<int, User>
+     */
+    #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'trajet')]
+    private Collection $users;
 
     public function __construct()
     {
         $this->reservations = new ArrayCollection();
         $this->historiques = new ArrayCollection();
+        $this->users = new ArrayCollection();
+    }
+
+    // Méthode pour compter le nombre de passagers (excluant le chauffeur)
+    public function getNombrePassagers(): int
+    {
+        return $this->users->count() - 1; // En supposant que le chauffeur est inclus dans la collection users
+    }
+
+    // Méthode pour compter le nombre de chauffeurs
+    public function getNombreChauffeurs(): int
+    {
+        // Supposons que le chauffeur est l'utilisateur créé ce trajet (ou assigné explicitement)
+        return $this->users->contains($this->getChauffeur()) ? 1 : 0;
+    }
+
+    // Méthode pour compter le nombre de passagers-chauffeurs
+    public function getNombrePassagersChauffeurs(): int
+    {
+        $count = 0;
+
+        foreach ($this->users as $user) {
+            if ($user->hasRole('ROLE_CHAUFFEUR') && $this->isPassager($user)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    // Vérifier si un utilisateur est un passager
+    private function isPassager(User $user): bool
+    {
+        return $this->users->contains($user);
+    }
+
+    // Si tu veux ajouter un chauffeur spécifique
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $chauffeur = null;
+
+    public function getChauffeur(): ?User
+    {
+        return $this->chauffeur;
+    }
+
+    public function setChauffeur(User $chauffeur): static
+    {
+        $this->chauffeur = $chauffeur;
+        return $this;
     }
 
     public function getId(): ?int
@@ -264,14 +325,29 @@ class Trajet
         return $this;
     }
 
-    public function getUser(): ?User
+    /**
+     * @return Collection<int, User>
+     */
+    public function getUsers(): Collection
     {
-        return $this->user;
+        return $this->users;
     }
 
-    public function setUser(?User $user): static
+    public function addUser(User $user): static
     {
-        $this->user = $user;
+        if (!$this->users->contains($user)) {
+            $this->users->add($user);
+            $user->addTrajet($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUser(User $user): static
+    {
+        if ($this->users->removeElement($user)) {
+            $user->removeTrajet($this);
+        }
 
         return $this;
     }
