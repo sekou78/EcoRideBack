@@ -18,7 +18,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['trajet:read', 'reservation:read', 'historique:read', 'profilConducteur:read', 'employes:read', 'admin:read', 'avis:read'])]
+    #[Groups(
+        [
+            'trajet:read',
+            'reservation:read',
+            'historique:read',
+            'profilConducteur:read',
+            'employes:read',
+            'admin:read',
+            'avis:read',
+            'image:read'
+        ]
+    )]
     private ?int $id = null;
 
     #[Assert\NotBlank(message: 'Veuillez renseigner un email.')]
@@ -75,7 +86,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'profilConducteur:read',
             'employes:read',
             'admin:read',
-            'avis:read'
+            'avis:read',
+            'image:read'
         ]
     )]
     private ?string $pseudo = null;

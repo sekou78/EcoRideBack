@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\ImageRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ImageRepository::class)]
 class Image
@@ -12,9 +13,11 @@ class Image
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['image:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BLOB, nullable: true)]
+    #[Groups(['image:read'])]
     private $identite;
 
     #[ORM\Column]
@@ -27,6 +30,7 @@ class Image
     private ?string $filePath = null;
 
     #[ORM\OneToOne(cascade: ['persist'])]
+    #[Groups(['image:read'])]
     private ?User $user = null;
 
     public function getId(): ?int

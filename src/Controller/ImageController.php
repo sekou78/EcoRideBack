@@ -161,7 +161,8 @@ final class ImageController extends AbstractController
             $this->serializer
                 ->serialize(
                     $image,
-                    'json'
+                    'json',
+                    ['groups' => 'image:read']
                 ),
             Response::HTTP_CREATED,
             [],
@@ -237,6 +238,14 @@ final class ImageController extends AbstractController
             return new JsonResponse(
                 ['error' => 'Image not found'],
                 Response::HTTP_NOT_FOUND
+            );
+        }
+
+        //Vérifier que l'utilisateur est bien le créateur
+        if ($image->getUser() !== $user) {
+            return new JsonResponse(
+                ['error' => "Vous n'êtes pas autorisé à modifier cette image."],
+                Response::HTTP_FORBIDDEN
             );
         }
 
@@ -343,9 +352,6 @@ final class ImageController extends AbstractController
 
         // Mettre à jour l'image dans la base de données
         $image->setFilePath('/uploads/images/' . $fileName);
-
-        // Associer l'image à l'utilisateur
-        $image->setUser($user);
 
         $image->setUpdatedAt(new DateTimeImmutable());
 
