@@ -181,8 +181,15 @@ final class TrajetController extends AbstractController
             );
         }
 
-        // Récupérer l'utilisateur authentifié
+        // Vérifier que l'utilisateur connecté est le créateur de la réservation
         $user = $this->security->getUser();
+
+        if ($trajet->getChauffeur() !== $user) {
+            return new JsonResponse(
+                ['error' => "Vous n'êtes pas autorisé à modifier ce trajet."],
+                Response::HTTP_FORBIDDEN
+            );
+        }
 
         // Vérifier si l'utilisateur est un chauffeur ou un passager_chauffeur
         if (!$user || !in_array(
