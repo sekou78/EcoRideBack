@@ -715,18 +715,86 @@ final class SecurityController extends AbstractController
     }
 
     #[Route(
-        '/admin/droitSuspensionComptes/{droitId}',
+        '/admin/droitSuspensionComptes/{id}',
         name: 'admin_droitSuspensionComptes',
         methods: 'PUT'
     )]
+    #[OA\Put(
+        path: "/api/admin/droitSuspensionComptes/{id}",
+        summary: "Suspendre un compte (admin uniquement)",
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "ID de l'utilisateur à suspendre",
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Compte suspendu avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Compte suspendu"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé (non autorisé)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Accès réfusé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Utilisateur non trouvé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Compte non trouvé"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_ADMIN')]
     public function droitSuspensionComptes(
-        int $droitId,
+        int $id,
         EntityManagerInterface $manager
     ): JsonResponse {
         $droit = $manager
             ->getRepository(User::class)
-            ->findOneBy(['id' => $droitId]);
+            ->findOneBy(['id' => $id]);
 
         // Vérification si l'utilisateur a le rôle requis
         if (
