@@ -75,13 +75,42 @@ final class TrajetController extends AbstractController
         }
 
         // Récupérer les utilisateurs passagers
-        if ($data['user'] && is_array($data['user'])) {
+        if (
+            !empty($data['user'])
+            &&
+            is_array($data['user'])
+        ) {
             foreach ($data['user'] as $userId) {
                 $userEntity = $this->manager
                     ->getRepository(User::class)
                     ->find($userId);
+
                 if ($userEntity) {
-                    $trajet->addUser($userEntity);
+                    // Vérifier les rôles autorisés
+                    $roles = $userEntity->getRoles();
+                    if (
+                        in_array('ROLE_PASSAGER', $roles) ||
+                        in_array('ROLE_PASSAGER_CHAUFFEUR', $roles)
+                    ) {
+                        // Vérifier que l'utilisateur n'est pas déjà ajouté
+                        if (!$trajet->getUsers()->contains($userEntity)) {
+                            $trajet->addUser($userEntity);
+                        } else {
+                            return new JsonResponse(
+                                [
+                                    'error' => "L'utilisateur avec l'ID $userId est déjà ajouté au trajet."
+                                ],
+                                Response::HTTP_BAD_REQUEST
+                            );
+                        }
+                    } else {
+                        return new JsonResponse(
+                            [
+                                'error' => "L'utilisateur avec l'ID $userId n'a pas le rôle requis."
+                            ],
+                            Response::HTTP_FORBIDDEN
+                        );
+                    }
                 }
             }
         }
@@ -133,7 +162,6 @@ final class TrajetController extends AbstractController
             true
         );
     }
-
 
     #[Route("/{id}", name: "show", methods: "GET")]
     public function show(int $id): JsonResponse
@@ -253,18 +281,36 @@ final class TrajetController extends AbstractController
         }
 
         // Réinitialiser les utilisateurs passagers existants avant d'ajouter les nouveaux
-        if ($data['user'] && is_array($data['user'])) {
+        if (
+            !empty($data['user'])
+            &&
+            is_array($data['user'])
+        ) {
             foreach ($trajet->getUsers() as $existingUser) {
                 $trajet->removeUser($existingUser);
             }
 
-            // Ajouter les nouveaux passagers
             foreach ($data['user'] as $userId) {
                 $userEntity = $this->manager
                     ->getRepository(User::class)
                     ->find($userId);
+
                 if ($userEntity) {
-                    $trajet->addUser($userEntity);
+                    $roles = $userEntity->getRoles();
+                    if (
+                        in_array('ROLE_PASSAGER', $roles) ||
+                        in_array('ROLE_PASSAGER_CHAUFFEUR', $roles)
+                    ) {
+                        $trajet->addUser($userEntity);
+                    } else {
+                        return new JsonResponse([
+                            'error' => "L'utilisateur avec l'ID $userId n'a pas un rôle valide."
+                        ], Response::HTTP_FORBIDDEN);
+                    }
+                } else {
+                    return new JsonResponse([
+                        'error' => "Utilisateur avec l'ID $userId introuvable."
+                    ], Response::HTTP_NOT_FOUND);
                 }
             }
         }

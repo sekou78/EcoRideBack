@@ -69,7 +69,6 @@ class Trajet
      * @var Collection<int, Historique>
      */
     #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'trajet')]
-    #[Groups(['historic:read'])]
     private Collection $historiques;
 
     #[ORM\Column]
@@ -127,6 +126,7 @@ class Trajet
     // Si tu veux ajouter un chauffeur spécifique
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['trajet:read'])]
     private ?User $chauffeur = null;
 
     public function getChauffeur(): ?User
