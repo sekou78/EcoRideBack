@@ -329,6 +329,62 @@ final class SecurityController extends AbstractController
     }
 
     #[Route('/account/me', name: 'me', methods: 'GET')]
+    #[OA\Get(
+        path: "/api/account/me",
+        summary: "Les informations de l'objet User",
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Les champs de l'utilisateur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "email",
+                                type: "string",
+                                example: "Mail de connexion"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                            ),
+                            new OA\Property(
+                                property: "pseudo",
+                                type: "string",
+                                example: "Dinga223"
+                            ),
+                            new OA\Property(
+                                property: "nom",
+                                type: "string",
+                                example: "Fath"
+                            ),
+                            new OA\Property(
+                                property: "prenom",
+                                type: "string",
+                                example: "Alpha"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function me(): JsonResponse
     {
         $user = $this->getUser();
@@ -342,7 +398,8 @@ final class SecurityController extends AbstractController
                         'id',
                         'email',
                         'roles',
-                        'username',
+                        'apiToken',
+                        'pseudo',
                         'nom',
                         'prenom'
                     ]
