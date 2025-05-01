@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Avis;
 use App\Entity\Reservation;
+use App\Entity\User;
 use App\Repository\AvisRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,47 +23,106 @@ final class AvisController extends AbstractController
         private EntityManagerInterface $manager,
         private AvisRepository $repository,
         private SerializerInterface $serializer,
-        private UrlGeneratorInterface $urlGenerator
+        private UrlGeneratorInterface $urlGenerator,
+        private Security $security
     ) {}
 
     #[Route(methods: "POST")]
-    #[IsGranted('ROLE_PASSAGER')]
-    public function new(Request $request, Security $security): JsonResponse
+    public function new(Request $request): JsonResponse
     {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non authentifié'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Vérifier si l'utilisateur a le rôle "passager" ou "passager_chauffeur"
+        if (
+            !in_array('ROLE_PASSAGER', $user->getRoles())
+            &&
+            !in_array('ROLE_PASSAGER_CHAUFFEUR', $user->getRoles())
+        ) {
+            return new JsonResponse(
+                [
+                    'error' => "Seuls les passagers ou passager_chauffeurs peuvent poster un avis."
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
         $data = json_decode(
             $request->getContent(),
             true
         );
 
-        $avis = $this->serializer->deserialize(
-            $request->getContent(),
-            Avis::class,
-            'json',
-        );
-
-        // Les avis sont invisible par defaut
-        $avis->setIsVisible(false);
-
-        // Assigner l'avis à la réservation
-        if ($data['reservation']) {
-            $reservation = $this->manager
-                ->getRepository(Reservation::class)
-                ->find($data['reservation']);
-            if ($reservation) {
-                $avis->setReservation($reservation);
-            } else {
-                return new JsonResponse(
-                    ['error' => 'reservation non trouvé'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
+        if (empty($data['reservation'])) {
+            return new JsonResponse(
+                [
+                    'error' => 'ID de réservation requis.'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
         }
 
-        // Récupère l'utilisateur qui poste l'avis
-        $user = $security->getUser();
-        $avis->setUser($user);
+        // Récupération de la réservation
+        $reservation = $this->manager
+            ->getRepository(Reservation::class)
+            ->find($data['reservation']);
 
-        $avis->setCreatedAt(new DateTimeImmutable());
+        if (!$reservation) {
+            return new JsonResponse(
+                [
+                    'error' => 'Réservation non trouvée'
+                ],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Vérifier que la réservation appartient à l'utilisateur connecté
+        if ($reservation->getUser() !== $user) {
+            return new JsonResponse(
+                [
+                    'error' => "Vous n'avez pas de réservation sur ce trajet"
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Vérifier qu'il n'y a pas déjà un avis pour cette réservation
+        $existingAvis = $this->manager
+            ->getRepository(Avis::class)
+            ->findOneBy(
+                [
+                    'reservation' => $reservation
+                ]
+            );
+
+        if ($existingAvis) {
+            return new JsonResponse(
+                [
+                    'error' => 'Vous avez déjà soumis un avis pour ce trajet.'
+                ],
+                Response::HTTP_CONFLICT
+            );
+        }
+
+        // Créer et enregistrer l'avis
+        $avis = $this->serializer
+            ->deserialize(
+                $request->getContent(),
+                Avis::class,
+                'json'
+            );
+        $avis->setIsVisible(false);
+        $avis->setUser($user);
+        $avis->setReservation($reservation);
+        $avis->setCreatedAt(new \DateTimeImmutable());
 
         $this->manager->persist($avis);
         $this->manager->flush();
@@ -76,14 +136,14 @@ final class AvisController extends AbstractController
         $location = $this->urlGenerator->generate(
             'app_api_avis_show',
             ['id' => $avis->getId()],
-            UrlGeneratorInterface::ABSOLUTE_URL,
+            UrlGeneratorInterface::ABSOLUTE_URL
         );
 
         return new JsonResponse(
             $responseData,
             Response::HTTP_CREATED,
             ['Location' => $location],
-            true,
+            true
         );
     }
 
