@@ -15,6 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use OpenApi\Attributes as OA;
 
 #[Route('/api', name: 'app_api_')]
 final class SecurityController extends AbstractController
@@ -26,6 +27,125 @@ final class SecurityController extends AbstractController
         private ValidatorInterface $validator
     ) {}
     #[Route('/registration', name: 'registration', methods: 'POST')]
+    #[OA\Post(
+        path: "/api/registration",
+        summary: "Inscription d'un utilisateur",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Utilisateur à inscrire",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["email", "password", "pseudo"],
+                    properties: [
+                        new OA\Property(
+                            property: "email",
+                            type: "string",
+                            format: "email",
+                            example: "mail@mail.fr"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            format: "password",
+                            example: "Azerty$123"
+                        ),
+                        new OA\Property(
+                            property: "pseudo",
+                            type: "string",
+                            example: "Dinga223"
+                        ),
+                        new OA\Property(
+                            property: "roles",
+                            type: "array",
+                            items: new OA\Items(
+                                type: "string",
+                                example: "ROLE_PASSAGER"
+                            )
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Utilisateur inscrit avec succès',
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "user",
+                                type: "string",
+                                example: "mail@mail.fr"
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            ),
+                            new OA\Property(
+                                property: "createdAt",
+                                type: "string",
+                                description: "Date de création de l'utilisateur",
+                                example: "01/05/2025"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Erreur de validation (email déjà utilisé ou rôle invalide)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Email déjà utilisé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Rôle interdit (ADMIN ou EMPLOYE)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Vous n'êtes pas autorisé à créer ce rôle"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function register(
         Request $request
     ): JsonResponse {
@@ -96,7 +216,8 @@ final class SecurityController extends AbstractController
                 "id" => $user->getId(),
                 "user" => $user->getUserIdentifier(),
                 "apiToken" => $user->getApiToken(),
-                "roles" => $user->getRoles()
+                "roles" => $user->getRoles(),
+                "Created_at" => $user->getCreatedAt()->format('d/m/Y')
             ],
             Response::HTTP_CREATED
         );
