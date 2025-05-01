@@ -224,6 +224,87 @@ final class SecurityController extends AbstractController
     }
 
     #[Route('/login', name: 'login', methods: 'POST')]
+    #[OA\Post(
+        path: "/api/login",
+        summary: "Connexion d'un Utilisateur",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données de l'utilisateur pour se connecter",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["username", "password"],
+                    properties: [
+                        new OA\Property(
+                            property: "username",
+                            type: "string",
+                            example: "mail@mail.fr"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            example: "Azerty$123"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Connexion reussie",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "user",
+                                type: "string",
+                                example: "Mail de connexions"
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Identifiants manquants ou invalides",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "missing credentials"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function login(#[CurrentUser()] ?User $user): JsonResponse
     {
         if (null === $user) {
