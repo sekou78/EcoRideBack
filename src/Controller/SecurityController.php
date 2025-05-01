@@ -415,6 +415,141 @@ final class SecurityController extends AbstractController
     }
 
     #[Route('/account/edit', name: 'edit', methods: 'PUT')]
+    #[OA\Put(
+        path: "/api/account/edit",
+        summary: "Modifier son compte",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données à mettre à jour",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "nom",
+                            type: "string",
+                            example: "Fath"
+                        ),
+                        new OA\Property(
+                            property: "prenom",
+                            type: "string",
+                            example: "Alpha"
+                        ),
+                        new OA\Property(
+                            property: "telephone",
+                            type: "string",
+                            example: "+33 6 00 00 00 00"
+                        ),
+                        new OA\Property(
+                            property: "adresse",
+                            type: "string",
+                            example: "Rue de le ville XXXXX La ville"
+                        ),
+                        new OA\Property(
+                            property: "dateNaissance",
+                            type: "string",
+                            example: "10/10/1910"
+                        ),
+                        new OA\Property(
+                            property: "pseudo",
+                            type: "string",
+                            example: "Dinga223"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            format: "password",
+                            example: "Azerty$1"
+                        ),
+                        new OA\Property(
+                            property: "image",
+                            type: "integer",
+                            example: 7
+                        ),
+                        new OA\Property(
+                            property: "roles",
+                            type: "array",
+                            items: new OA\Items(
+                                type: "string",
+                                example: "ROLE_PASSAGER"
+                            )
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Utilisateur modifié avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "email",
+                                type: "string",
+                                example: "Mail de connexion"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            ),
+                            new OA\Property(
+                                property: "pseudo",
+                                type: "string",
+                                example: "Dinga223"
+                            ),
+                            new OA\Property(
+                                property: "nom",
+                                type: "string",
+                                example: "Fath"
+                            ),
+                            new OA\Property(
+                                property: "prenom",
+                                type: "string",
+                                example: "Alpha"
+                            ),
+                            new OA\Property(
+                                property: "updatedAt",
+                                type: "string",
+                                format: "date-time"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Erreur de validation ou données incorrectes",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "errors",
+                                type: "array",
+                                items: new OA\Items(type: "string"),
+                                example: ["Données incohérente"]
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function edit(Request $request): JsonResponse
     {
         $data = json_decode(
@@ -468,11 +603,11 @@ final class SecurityController extends AbstractController
                 );
             if (!$image) {
                 return new JsonResponse(
-                    ['error' => 'Utilisateur non trouvé'],
+                    ['error' => 'Image non trouvée'],
                     Response::HTTP_BAD_REQUEST
                 );
             }
-            $user->setImage($image);
+            $image->setUser($user);
         }
 
         $this->manager->flush();
@@ -487,7 +622,10 @@ final class SecurityController extends AbstractController
                         'id',
                         'email',
                         'pseudo',
-                        'roles'
+                        'roles',
+                        'nom',
+                        'prenom',
+                        'updatedAt'
                     ]
                 ]
             );
