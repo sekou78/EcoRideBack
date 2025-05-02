@@ -18,6 +18,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
+use OpenApi\Attributes as OA;
 
 #[Route('api/image', name: 'app_api_image_')]
 #[IsGranted('ROLE_USER')]
@@ -41,13 +42,105 @@ final class ImageController extends AbstractController
 
     // Ajouter une image
     #[Route(methods: 'POST')]
+    #[OA\Post(
+        path: "/api/image",
+        summary: "Ajouter une image.",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Image à envoyer via multipart/form-data OU JSON base64",
+            content: [
+                new OA\MediaType(
+                    mediaType: "multipart/form-data",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "image",
+                                type: "string",
+                                format: "binary",
+                                description: "Fichier image à uploader"
+                            )
+                        ]
+                    )
+                ),
+                new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        required: ["fileName", "fileData"],
+                        properties: [
+                            new OA\Property(
+                                property: "fileName",
+                                type: "string",
+                                example: "photo.png"
+                            ),
+                            new OA\Property(
+                                property: "fileData",
+                                type: "string",
+                                format: "byte",
+                                example: "iVBORw0KGgoAAAANSUhEUgAA..."
+                            )
+                        ]
+                    )
+                )
+            ]
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Image créée avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer"
+                            ),
+                            new OA\Property(
+                                property: "identite",
+                                type: "string"
+                            ),
+                            new OA\Property(
+                                property: "filePath",
+                                type: "string"
+                            ),
+                            new OA\Property(
+                                property: "createdAt",
+                                type: "string",
+                                format: "date-time"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Requête invalide ou type de fichier non autorisé"
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié"
+            ),
+            new OA\Response(
+                response: 500,
+                description: "Erreur lors de l'enregistrement du fichier"
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function new(Request $request): JsonResponse
     {
         // Récupérer l'utilisateur connecté
         $user = $this->getUser();
         if (!$user) {
-            return new JsonResponse(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(
+                [
+                    'error' => 'User not authenticated'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
         }
 
         // Vérifier si c'est une requête multipart (fichier normal)
@@ -172,6 +265,43 @@ final class ImageController extends AbstractController
 
     //Afficher une image
     #[Route('/{id}', name: 'show', methods: 'GET')]
+    #[OA\Get(
+        path: "/api/image/{id}",
+        summary: "Afficher l'image de l'utilisateur connecté",
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "ID de l'image à afficher",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 5
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Image retournée avec succès",
+                content: new OA\MediaType(
+                    mediaType: "image/jpeg"
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Non authentifié"
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé à cette image"
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Image non trouvée"
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function show(int $id): BinaryFileResponse
     {
@@ -220,6 +350,94 @@ final class ImageController extends AbstractController
 
     //Modifier une image
     #[Route('/{id}', name: 'edit', methods: 'POST')]
+    #[OA\Post(
+        path: '/api/image/{id}',
+        summary: 'Modifier une image existante',
+        description: 'Permet à un utilisateur connecté de modifier son image.',
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: "ID de l'image à modifier",
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: 'Fichier image à envoyer (jpg, jpeg, png, gif, webp)',
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    type: 'object',
+                    required: ['image'],
+                    properties: [
+                        new OA\Property(
+                            property: 'image',
+                            type: 'string',
+                            format: 'binary'
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Image modifiée avec succès',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: 'id',
+                                type: 'integer',
+                                example: 42
+                            ),
+                            new OA\Property(
+                                property: 'filePath',
+                                type: 'string',
+                                example: '/uploads/images/abcd1234-image.jpg'
+                            ),
+                            new OA\Property(
+                                property: 'updatedAt',
+                                type: 'string',
+                                example: '01-05-2025 15:42:00'
+                            ),
+                            new OA\Property(
+                                property: 'message',
+                                type: 'string',
+                                example: 'Image updated successfully'
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Aucun fichier envoyé ou type de fichier invalide'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Utilisateur non authentifié'
+            ),
+            new OA\Response(
+                response: 403,
+                description: "L'utilisateur n'est pas propriétaire de l'image"
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Image non trouvée'
+            ),
+            new OA\Response(
+                response: 500,
+                description: "Erreur lors du téléversement ou de l'enregistrement du fichier"
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function edit(
         int $id,
@@ -228,7 +446,10 @@ final class ImageController extends AbstractController
         // Récupérer l'utilisateur connecté
         $user = $this->getUser();
         if (!$user) {
-            return new JsonResponse(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(
+                ['error' => 'User not authenticated'],
+                Response::HTTP_UNAUTHORIZED
+            );
         }
 
         // Récupération de l'image en base de données
@@ -388,6 +609,80 @@ final class ImageController extends AbstractController
 
     //Supprimer une image
     #[Route('/{id}', name: 'delete', methods: 'DELETE')]
+    #[OA\Delete(
+        path: "/api/image/{id}",
+        summary: "Supprimer son image",
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "Identifiant de l'image à supprimer",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 7
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Image supprimée avec succès",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "message",
+                            type: "string",
+                            example: "Image supprimée avec succès."
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "error",
+                            type: "string",
+                            example: "Utilisateur non connu"
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès interdit à cette image",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "error",
+                            type: "string",
+                            example: "Vous n'avez pas accès à cette image, pour la supprimée."
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Image non trouvée",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "error",
+                            type: "string",
+                            example: "Image not found"
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function delete(int $id): JsonResponse
     {
@@ -395,7 +690,7 @@ final class ImageController extends AbstractController
         $user = $this->security->getUser();
         if (!$user instanceof User) {
             return new JsonResponse(
-                ['error' => 'User not authenticated'],
+                ['error' => 'Utilisateur non connu'],
                 Response::HTTP_UNAUTHORIZED
             );
         }
