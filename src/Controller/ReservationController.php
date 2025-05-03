@@ -15,6 +15,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use OpenApi\Attributes as OA;
 
 #[Route("api/reservation", name: "app_api_reservation_")]
 final class ReservationController extends AbstractController
@@ -29,6 +30,124 @@ final class ReservationController extends AbstractController
     ) {}
 
     #[Route(methods: "POST")]
+    #[OA\Post(
+        path: "/api/reservation",
+        summary: "Créer une nouvelle réservation",
+        description: "Permet à un utilisateur de créer réservation pour un trajet.",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données de la réservation à créer",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["statut", "trajet"],
+                    properties: [
+                        new OA\Property(
+                            property: "statut",
+                            type: "string",
+                            example: "CONFIRMEE"
+                        ),
+                        new OA\Property(
+                            property: "trajet",
+                            type: "integer",
+                            example: 1
+                        )
+                    ],
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Réservation créée avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: 'id',
+                                type: 'integer',
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: 'statut',
+                                type: 'string',
+                                example: 'CONFIRMEE'
+                            ),
+                            new OA\Property(
+                                property: 'trajet',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 11
+                                    ),
+                                    new OA\Property(
+                                        property: 'statut',
+                                        type: 'string',
+                                        example: 'ANNULEE'
+                                    )
+                                ]
+                            ),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 15
+                                    ),
+                                    new OA\Property(
+                                        property: 'pseudo',
+                                        type: 'string',
+                                        example: 'testuser'
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Données invalides",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Données invalides ou erreurs de validation."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Trajet déjà réservé ou statut du trajet interdit",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Vous avez déjà réservé un trajet."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function new(Request $request): JsonResponse
     {
@@ -157,6 +276,86 @@ final class ReservationController extends AbstractController
     }
 
     #[Route("/{id}", name: "show", methods: "GET")]
+    #[OA\Get(
+        path: '/api/reservation/{id}',
+        summary: 'Afficher une réservation',
+        description: 'Retourne une réservation qui appartient à l’utilisateur connecté.',
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'ID de la réservation',
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Réservation trouvée',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: 'id',
+                                type: 'integer',
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: 'statut',
+                                type: 'string',
+                                example: 'CONFIRMEE'
+                            ),
+                            new OA\Property(
+                                property: 'trajet',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 11
+                                    ),
+                                    new OA\Property(
+                                        property: 'statut',
+                                        type: 'string',
+                                        example: 'ANNULEE'
+                                    )
+                                ]
+                            ),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 15
+                                    ),
+                                    new OA\Property(
+                                        property: 'pseudo',
+                                        type: 'string',
+                                        example: 'testuser'
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'L’utilisateur n’est pas autorisé à accéder à cette réservation'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Réservation non trouvée'
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function show(int $id): JsonResponse
     {
@@ -202,6 +401,107 @@ final class ReservationController extends AbstractController
     }
 
     #[Route("/{id}", name: "edit", methods: "PUT")]
+    #[OA\Put(
+        path: '/api/reservation/{id}',
+        summary: 'Modifier une réservation',
+        description: 'Permet à l’utilisateur de modifier sa propre réservation.',
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'ID de la réservation à modifier',
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    type: 'object',
+                    required: ["statut"],
+                    properties: [
+                        new OA\Property(
+                            property: "statut",
+                            type: "string",
+                            example: "EN_ATTENTE"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Réservation mise à jour avec succès',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: 'id',
+                                type: 'integer',
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: 'statut',
+                                type: 'string',
+                                example: 'EN_ATTENTE'
+                            ),
+                            new OA\Property(
+                                property: 'trajet',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 11
+                                    ),
+                                    new OA\Property(
+                                        property: 'statut',
+                                        type: 'string',
+                                        example: 'CONFIRMEE'
+                                    )
+                                ]
+                            ),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 15
+                                    ),
+                                    new OA\Property(
+                                        property: 'pseudo',
+                                        type: 'string',
+                                        example: 'testuser'
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Accès interdit - utilisateur non propriétaire de la réservation'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Réservation non trouvée'
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Données invalides ou erreurs de validation'
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function edit(int $id, Request $request): JsonResponse
     {
@@ -221,7 +521,9 @@ final class ReservationController extends AbstractController
 
         if ($reservation->getUser() !== $user) {
             return new JsonResponse(
-                ['error' => "Vous n'êtes pas autorisé à modifier cette réservation."],
+                [
+                    'error' => "Vous n'êtes pas autorisé à modifier cette réservation."
+                ],
                 Response::HTTP_FORBIDDEN
             );
         }
@@ -263,6 +565,49 @@ final class ReservationController extends AbstractController
     }
 
     #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[OA\Delete(
+        path: '/api/reservation/{id}',
+        summary: 'Supprimer une réservation',
+        description: 'Supprimer sa réservation.',
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'ID de la réservation à supprimer',
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Réservation supprimée avec succès',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: 'message',
+                                type: 'string',
+                                example: 'Réservation supprimée avec succès'
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Accès interdit - utilisateur non propriétaire de la réservation'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Réservation non trouvée'
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function delete(int $id): JsonResponse
     {

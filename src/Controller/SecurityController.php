@@ -15,6 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use OpenApi\Attributes as OA;
 
 #[Route('/api', name: 'app_api_')]
 final class SecurityController extends AbstractController
@@ -26,6 +27,125 @@ final class SecurityController extends AbstractController
         private ValidatorInterface $validator
     ) {}
     #[Route('/registration', name: 'registration', methods: 'POST')]
+    #[OA\Post(
+        path: "/api/registration",
+        summary: "Inscription d'un utilisateur",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Utilisateur à inscrire",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["email", "password", "pseudo"],
+                    properties: [
+                        new OA\Property(
+                            property: "email",
+                            type: "string",
+                            format: "email",
+                            example: "mail@mail.fr"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            format: "password",
+                            example: "Azerty$123"
+                        ),
+                        new OA\Property(
+                            property: "pseudo",
+                            type: "string",
+                            example: "Dinga223"
+                        ),
+                        new OA\Property(
+                            property: "roles",
+                            type: "array",
+                            items: new OA\Items(
+                                type: "string",
+                                example: "ROLE_PASSAGER"
+                            )
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Utilisateur inscrit avec succès',
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "user",
+                                type: "string",
+                                example: "mail@mail.fr"
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            ),
+                            new OA\Property(
+                                property: "createdAt",
+                                type: "string",
+                                description: "Date de création de l'utilisateur",
+                                example: "01/05/2025"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Erreur de validation (email déjà utilisé ou rôle invalide)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Email déjà utilisé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Rôle interdit (ADMIN ou EMPLOYE)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Vous n'êtes pas autorisé à créer ce rôle"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function register(
         Request $request
     ): JsonResponse {
@@ -96,13 +216,95 @@ final class SecurityController extends AbstractController
                 "id" => $user->getId(),
                 "user" => $user->getUserIdentifier(),
                 "apiToken" => $user->getApiToken(),
-                "roles" => $user->getRoles()
+                "roles" => $user->getRoles(),
+                "Created_at" => $user->getCreatedAt()->format('d/m/Y')
             ],
             Response::HTTP_CREATED
         );
     }
 
     #[Route('/login', name: 'login', methods: 'POST')]
+    #[OA\Post(
+        path: "/api/login",
+        summary: "Connexion d'un Utilisateur",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données de l'utilisateur pour se connecter",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["username", "password"],
+                    properties: [
+                        new OA\Property(
+                            property: "username",
+                            type: "string",
+                            example: "mail@mail.fr"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            example: "Azerty$123"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Connexion reussie",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "user",
+                                type: "string",
+                                example: "Mail de connexions"
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Identifiants manquants ou invalides",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "missing credentials"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function login(#[CurrentUser()] ?User $user): JsonResponse
     {
         if (null === $user) {
@@ -127,6 +329,62 @@ final class SecurityController extends AbstractController
     }
 
     #[Route('/account/me', name: 'me', methods: 'GET')]
+    #[OA\Get(
+        path: "/api/account/me",
+        summary: "Les informations de l'objet User",
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Les champs de l'utilisateur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "email",
+                                type: "string",
+                                example: "Mail de connexion"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                            ),
+                            new OA\Property(
+                                property: "pseudo",
+                                type: "string",
+                                example: "Dinga223"
+                            ),
+                            new OA\Property(
+                                property: "nom",
+                                type: "string",
+                                example: "Fath"
+                            ),
+                            new OA\Property(
+                                property: "prenom",
+                                type: "string",
+                                example: "Alpha"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function me(): JsonResponse
     {
         $user = $this->getUser();
@@ -140,7 +398,8 @@ final class SecurityController extends AbstractController
                         'id',
                         'email',
                         'roles',
-                        'username',
+                        'apiToken',
+                        'pseudo',
                         'nom',
                         'prenom'
                     ]
@@ -156,6 +415,159 @@ final class SecurityController extends AbstractController
     }
 
     #[Route('/account/edit', name: 'edit', methods: 'PUT')]
+    #[OA\Put(
+        path: "/api/account/edit",
+        summary: "Modifier son compte",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données à mettre à jour",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "nom",
+                            type: "string",
+                            example: "Fath"
+                        ),
+                        new OA\Property(
+                            property: "prenom",
+                            type: "string",
+                            example: "Alpha"
+                        ),
+                        new OA\Property(
+                            property: "telephone",
+                            type: "string",
+                            example: "+33 6 00 00 00 00"
+                        ),
+                        new OA\Property(
+                            property: "adresse",
+                            type: "string",
+                            example: "Rue de le ville XXXXX La ville"
+                        ),
+                        new OA\Property(
+                            property: "dateNaissance",
+                            type: "string",
+                            example: "10/10/1910"
+                        ),
+                        new OA\Property(
+                            property: "pseudo",
+                            type: "string",
+                            example: "Dinga223"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            format: "password",
+                            example: "Azerty$1"
+                        ),
+                        new OA\Property(
+                            property: "image",
+                            type: "integer",
+                            example: 7
+                        ),
+                        new OA\Property(
+                            property: "roles",
+                            type: "array",
+                            items: new OA\Items(
+                                type: "string",
+                                example: "ROLE_PASSAGER"
+                            )
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Utilisateur modifié avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: "1"
+                            ),
+                            new OA\Property(
+                                property: "email",
+                                type: "string",
+                                example: "Mail de connexion"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_PASSAGER"
+                                )
+                            ),
+                            new OA\Property(
+                                property: "pseudo",
+                                type: "string",
+                                example: "Dinga223"
+                            ),
+                            new OA\Property(
+                                property: "nom",
+                                type: "string",
+                                example: "Fath"
+                            ),
+                            new OA\Property(
+                                property: "prenom",
+                                type: "string",
+                                example: "Alpha"
+                            ),
+                            new OA\Property(
+                                property: "updatedAt",
+                                type: "string",
+                                format: "date-time"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Erreur de validation ou données incorrectes",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "errors",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string"
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 500,
+                description: "Erreur interne du serveur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Une erreur inattendue est survenue"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function edit(Request $request): JsonResponse
     {
         $data = json_decode(
@@ -209,11 +621,11 @@ final class SecurityController extends AbstractController
                 );
             if (!$image) {
                 return new JsonResponse(
-                    ['error' => 'Utilisateur non trouvé'],
+                    ['error' => 'Image non trouvée'],
                     Response::HTTP_BAD_REQUEST
                 );
             }
-            $user->setImage($image);
+            $image->setUser($user);
         }
 
         $this->manager->flush();
@@ -228,7 +640,10 @@ final class SecurityController extends AbstractController
                         'id',
                         'email',
                         'pseudo',
-                        'roles'
+                        'roles',
+                        'nom',
+                        'prenom',
+                        'updatedAt'
                     ]
                 ]
             );
@@ -245,6 +660,147 @@ final class SecurityController extends AbstractController
         '/admin/create-user',
         name: 'admin_create_user',
         methods: 'POST'
+    )]
+    #[OA\Post(
+        path: "/api/admin/create-user",
+        summary: "Créer un employé par administrateur",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données de l'utilisateur à créer",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["email", "password", "pseudo"],
+                    properties: [
+                        new OA\Property(
+                            property: "email",
+                            type: "string",
+                            example: "employe@example.com"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            format: "password",
+                            example: "Azerty$1"
+                        ),
+                        new OA\Property(
+                            property: "pseudo",
+                            type: "string",
+                            example: "Shikki223"
+                        ),
+                        new OA\Property(
+                            property: "nom",
+                            type: "string",
+                            example: "Bala"
+                        ),
+                        new OA\Property(
+                            property: "prenom",
+                            type: "string",
+                            example: "Mamoutou"
+                        ),
+                        new OA\Property(
+                            property: "telephone",
+                            type: "string",
+                            example: "+33 6 00 00 00 00"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Utilisateur créé avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "user",
+                                type: "string",
+                                example: "employe@example.com"
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "eyJ0eXAiOiJK..."
+                            ),
+                            new OA\Property(
+                                property: "pseudo",
+                                type: "string",
+                                example: "Shikki223"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_EMPLOYE"
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Données invalides ou email déjà utilisé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Cet email est déjà utlisé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Un compte administrateur existe déjà, accès interdit",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Un compte administrateur existe déjà"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 500,
+                description: "Erreur interne du serveur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Une erreur est survenue"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
     )]
     #[IsGranted('ROLE_ADMIN')]
     public function createUser(
@@ -318,18 +874,86 @@ final class SecurityController extends AbstractController
     }
 
     #[Route(
-        '/admin/droitSuspensionComptes/{droitId}',
+        '/admin/droitSuspensionComptes/{id}',
         name: 'admin_droitSuspensionComptes',
         methods: 'PUT'
     )]
+    #[OA\Put(
+        path: "/api/admin/droitSuspensionComptes/{id}",
+        summary: "Suspendre un compte (admin uniquement)",
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "ID de l'utilisateur à suspendre",
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Compte suspendu avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Compte suspendu"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé (non autorisé)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Accès réfusé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Utilisateur non trouvé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Compte non trouvé"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_ADMIN')]
     public function droitSuspensionComptes(
-        int $droitId,
+        int $id,
         EntityManagerInterface $manager
     ): JsonResponse {
         $droit = $manager
             ->getRepository(User::class)
-            ->findOneBy(['id' => $droitId]);
+            ->findOneBy(['id' => $id]);
 
         // Vérification si l'utilisateur a le rôle requis
         if (

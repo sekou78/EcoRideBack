@@ -59,10 +59,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[Assert\NotBlank(message: 'Veuillez renseigner un mot de passe.')]
     #[Assert\Length(min: 8, minMessage: "Le mot de passe n'est pas conforme !
-          Au moins 8 caractères comprenant: 
-          1 lettre majuscule,
-          1 lettre miniscule,
-          1chiffre et 1 caractères sepéciale.")]
+        Au moins 8 caractères comprenant: 
+        1 lettre majuscule,
+        1 lettre miniscule,
+        1chiffre et 1 caractères sepéciale.")]
     #[ORM\Column]
     private ?string $password = null;
 
