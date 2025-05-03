@@ -41,57 +41,17 @@ final class ReservationController extends AbstractController
                 mediaType: "application/json",
                 schema: new OA\Schema(
                     type: "object",
-                    required: [
-                        "adresseDepart",
-                        "adresseArrivee",
-                        "dateDepart",
-                        "dateArrivee",
-                        "prix",
-                        "estEcologique",
-                        "nombrePlacesDisponible",
-                        "statut"
-                    ],
+                    required: ["statut", "trajet"],
                     properties: [
-                        new OA\Property(
-                            property: "adresseDepart",
-                            type: "string",
-                            example: "45 rue de la ville XXXXXX La Ville"
-                        ),
-                        new OA\Property(
-                            property: "adresseArrivee",
-                            type: "string",
-                            example: "Parking de la ville XXXXXX La Ville"
-                        ),
-                        new OA\Property(
-                            property: "dateDepart",
-                            type: "string",
-                            format: "date-time",
-                        ),
-                        new OA\Property(
-                            property: "dateArrivee",
-                            type: "string",
-                            format: "date-time",
-                            example: "2025-04-14T09:00:00+02:00"
-                        ),
-                        new OA\Property(
-                            property: "prix",
-                            type: "string",
-                            example: "30"
-                        ),
-                        new OA\Property(
-                            property: "estEcologique",
-                            type: "boolean",
-                            example: false
-                        ),
-                        new OA\Property(
-                            property: "nombrePlacesDisponible",
-                            type: "integer",
-                            example: 5
-                        ),
                         new OA\Property(
                             property: "statut",
                             type: "string",
-                            example: "EN_ATTENTE"
+                            example: "CONFIRMEE"
+                        ),
+                        new OA\Property(
+                            property: "trajet",
+                            type: "integer",
+                            example: 1
                         )
                     ],
                 )
@@ -107,64 +67,44 @@ final class ReservationController extends AbstractController
                         type: "object",
                         properties: [
                             new OA\Property(
-                                property: "id",
-                                type: "integer",
+                                property: 'id',
+                                type: 'integer',
                                 example: 1
                             ),
                             new OA\Property(
-                                property: "adresseDepart",
-                                type: "string",
-                                example: "45 rue de la ville XXXXXX La Ville"
+                                property: 'statut',
+                                type: 'string',
+                                example: 'CONFIRMEE'
                             ),
                             new OA\Property(
-                                property: "adresseArrivee",
-                                type: "string",
-                                example: "Parking de la ville XXXXXX La Ville"
-                            ),
-                            new OA\Property(
-                                property: "dateDepart",
-                                type: "string",
-                                format: "date-time",
-                            ),
-                            new OA\Property(
-                                property: "dateArrivee",
-                                type: "string",
-                                format: "date-time",
-                                example: "2025-04-14T09:00:00+02:00"
-                            ),
-                            new OA\Property(
-                                property: "prix",
-                                type: "string",
-                                example: "30"
-                            ),
-                            new OA\Property(
-                                property: "estEcologique",
-                                type: "boolean",
-                                example: false
-                            ),
-                            new OA\Property(
-                                property: "nombrePlacesDisponible",
-                                type: "integer",
-                                example: 5
-                            ),
-                            new OA\Property(
-                                property: "statut",
-                                type: "string",
-                                example: "EN_ATTENTE"
-                            ),
-                            new OA\Property(
-                                property: "chauffeur",
-                                type: "object",
+                                property: 'trajet',
+                                type: 'object',
                                 properties: [
                                     new OA\Property(
-                                        property: "id",
-                                        type: "integer",
-                                        example: 18
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 11
                                     ),
                                     new OA\Property(
-                                        property: "pseudo",
-                                        type: "string",
-                                        example: "testuser"
+                                        property: 'statut',
+                                        type: 'string',
+                                        example: 'ANNULEE'
+                                    )
+                                ]
+                            ),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 15
+                                    ),
+                                    new OA\Property(
+                                        property: 'pseudo',
+                                        type: 'string',
+                                        example: 'testuser'
                                     )
                                 ]
                             )
@@ -183,24 +123,7 @@ final class ReservationController extends AbstractController
                             new OA\Property(
                                 property: "error",
                                 type: "string",
-                                example: "Il n'y a plus de places disponibles pour ce trajet."
-                            )
-                        ]
-                    )
-                )
-            ),
-            new OA\Response(
-                response: 401,
-                description: "Utilisateur non authentifié",
-                content: new OA\MediaType(
-                    mediaType: "application/json",
-                    schema: new OA\Schema(
-                        type: "object",
-                        properties: [
-                            new OA\Property(
-                                property: "error",
-                                type: "string",
-                                example: "Utilisateur non connu"
+                                example: "Données invalides ou erreurs de validation."
                             )
                         ]
                     )
@@ -356,7 +279,7 @@ final class ReservationController extends AbstractController
     #[OA\Get(
         path: '/api/reservation/{id}',
         summary: 'Afficher une réservation',
-        description: 'Affiche les détails d’une réservation s’il en est le propriétaire.',
+        description: 'Retourne une réservation qui appartient à l’utilisateur connecté.',
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -378,64 +301,44 @@ final class ReservationController extends AbstractController
                         type: 'object',
                         properties: [
                             new OA\Property(
-                                property: "id",
-                                type: "integer",
+                                property: 'id',
+                                type: 'integer',
                                 example: 1
                             ),
                             new OA\Property(
-                                property: "adresseDepart",
-                                type: "string",
-                                example: "45 rue de la ville XXXXXX La Ville"
+                                property: 'statut',
+                                type: 'string',
+                                example: 'CONFIRMEE'
                             ),
                             new OA\Property(
-                                property: "adresseArrivee",
-                                type: "string",
-                                example: "Parking de la ville XXXXXX La Ville"
-                            ),
-                            new OA\Property(
-                                property: "dateDepart",
-                                type: "string",
-                                format: "date-time",
-                            ),
-                            new OA\Property(
-                                property: "dateArrivee",
-                                type: "string",
-                                format: "date-time",
-                                example: "2025-04-14T09:00:00+02:00"
-                            ),
-                            new OA\Property(
-                                property: "prix",
-                                type: "string",
-                                example: "30"
-                            ),
-                            new OA\Property(
-                                property: "estEcologique",
-                                type: "boolean",
-                                example: false
-                            ),
-                            new OA\Property(
-                                property: "nombrePlacesDisponible",
-                                type: "integer",
-                                example: 5
-                            ),
-                            new OA\Property(
-                                property: "statut",
-                                type: "string",
-                                example: "EN_ATTENTE"
-                            ),
-                            new OA\Property(
-                                property: "chauffeur",
-                                type: "object",
+                                property: 'trajet',
+                                type: 'object',
                                 properties: [
                                     new OA\Property(
-                                        property: "id",
-                                        type: "integer",
-                                        example: 18
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 11
                                     ),
                                     new OA\Property(
-                                        property: "pseudo",
-                                        type: "string",
-                                        example: "testuser"
+                                        property: 'statut',
+                                        type: 'string',
+                                        example: 'ANNULEE'
+                                    )
+                                ]
+                            ),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 15
+                                    ),
+                                    new OA\Property(
+                                        property: 'pseudo',
+                                        type: 'string',
+                                        example: 'testuser'
                                     )
                                 ]
                             )
@@ -445,7 +348,7 @@ final class ReservationController extends AbstractController
             ),
             new OA\Response(
                 response: 403,
-                description: 'Accès interdit - non propriétaire de la réservation'
+                description: 'L’utilisateur n’est pas autorisé à accéder à cette réservation'
             ),
             new OA\Response(
                 response: 404,
@@ -521,42 +424,6 @@ final class ReservationController extends AbstractController
                     type: 'object',
                     properties: [
                         new OA\Property(
-                            property: "adresseDepart",
-                            type: "string",
-                            example: "45 rue de la ville XXXXXX La Ville"
-                        ),
-                        new OA\Property(
-                            property: "adresseArrivee",
-                            type: "string",
-                            example: "Parking de la ville XXXXXX La Ville"
-                        ),
-                        new OA\Property(
-                            property: "dateDepart",
-                            type: "string",
-                            format: "date-time",
-                        ),
-                        new OA\Property(
-                            property: "dateArrivee",
-                            type: "string",
-                            format: "date-time",
-                            example: "2025-04-14T09:00:00+02:00"
-                        ),
-                        new OA\Property(
-                            property: "prix",
-                            type: "string",
-                            example: "30"
-                        ),
-                        new OA\Property(
-                            property: "estEcologique",
-                            type: "boolean",
-                            example: false
-                        ),
-                        new OA\Property(
-                            property: "nombrePlacesDisponible",
-                            type: "integer",
-                            example: 5
-                        ),
-                        new OA\Property(
                             property: "statut",
                             type: "string",
                             example: "EN_ATTENTE"
@@ -580,55 +447,34 @@ final class ReservationController extends AbstractController
                                 example: 1
                             ),
                             new OA\Property(
-                                property: 'adresseDepart',
-                                type: 'string',
-                                example: '45 rue de la ville XXXXXX La Ville'
-                            ),
-                            new OA\Property(
-                                property: 'adresseArrivee',
-                                type: 'string',
-                                example: 'Parking de la ville XXXXXX La Ville'
-                            ),
-                            new OA\Property(
-                                property: 'dateDepart',
-                                type: 'string',
-                                format: 'date-time',
-                                example: '2025-04-14T08:00:00+02:00'
-                            ),
-                            new OA\Property(
-                                property: 'dateArrivee',
-                                type: 'string',
-                                format: 'date-time',
-                                example: '2025-04-14T09:00:00+02:00'
-                            ),
-                            new OA\Property(
-                                property: 'prix',
-                                type: 'string',
-                                example: '12.5'
-                            ),
-                            new OA\Property(
-                                property: 'estEcologique',
-                                type: 'boolean',
-                                example: true
-                            ),
-                            new OA\Property(
-                                property: 'nombrePlacesDisponible',
-                                type: 'integer',
-                                example: 3
-                            ),
-                            new OA\Property(
                                 property: 'statut',
                                 type: 'string',
                                 example: 'EN_ATTENTE'
                             ),
                             new OA\Property(
-                                property: 'chauffeur',
+                                property: 'trajet',
                                 type: 'object',
                                 properties: [
                                     new OA\Property(
                                         property: 'id',
                                         type: 'integer',
-                                        example: 18
+                                        example: 11
+                                    ),
+                                    new OA\Property(
+                                        property: 'statut',
+                                        type: 'string',
+                                        example: 'CONFIRMEE'
+                                    )
+                                ]
+                            ),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 15
                                     ),
                                     new OA\Property(
                                         property: 'pseudo',
