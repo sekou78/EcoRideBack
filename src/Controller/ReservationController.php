@@ -422,6 +422,7 @@ final class ReservationController extends AbstractController
                 mediaType: 'application/json',
                 schema: new OA\Schema(
                     type: 'object',
+                    required: ["statut"],
                     properties: [
                         new OA\Property(
                             property: "statut",

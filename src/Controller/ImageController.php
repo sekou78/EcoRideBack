@@ -53,6 +53,7 @@ final class ImageController extends AbstractController
                     mediaType: "multipart/form-data",
                     schema: new OA\Schema(
                         type: "object",
+                        required: ["image"],
                         properties: [
                             new OA\Property(
                                 property: "image",

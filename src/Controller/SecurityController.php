@@ -661,6 +661,147 @@ final class SecurityController extends AbstractController
         name: 'admin_create_user',
         methods: 'POST'
     )]
+    #[OA\Post(
+        path: "/api/admin/create-user",
+        summary: "Créer un employé par administrateur",
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données de l'utilisateur à créer",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["email", "password", "pseudo"],
+                    properties: [
+                        new OA\Property(
+                            property: "email",
+                            type: "string",
+                            example: "employe@example.com"
+                        ),
+                        new OA\Property(
+                            property: "password",
+                            type: "string",
+                            format: "password",
+                            example: "Azerty$1"
+                        ),
+                        new OA\Property(
+                            property: "pseudo",
+                            type: "string",
+                            example: "Shikki223"
+                        ),
+                        new OA\Property(
+                            property: "nom",
+                            type: "string",
+                            example: "Bala"
+                        ),
+                        new OA\Property(
+                            property: "prenom",
+                            type: "string",
+                            example: "Mamoutou"
+                        ),
+                        new OA\Property(
+                            property: "telephone",
+                            type: "string",
+                            example: "+33 6 00 00 00 00"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Utilisateur créé avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "user",
+                                type: "string",
+                                example: "employe@example.com"
+                            ),
+                            new OA\Property(
+                                property: "apiToken",
+                                type: "string",
+                                example: "eyJ0eXAiOiJK..."
+                            ),
+                            new OA\Property(
+                                property: "pseudo",
+                                type: "string",
+                                example: "Shikki223"
+                            ),
+                            new OA\Property(
+                                property: "roles",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "string",
+                                    example: "ROLE_EMPLOYE"
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Données invalides ou email déjà utilisé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Cet email est déjà utlisé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Un compte administrateur existe déjà, accès interdit",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Un compte administrateur existe déjà"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 500,
+                description: "Erreur interne du serveur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Une erreur est survenue"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_ADMIN')]
     public function createUser(
         Request $request,

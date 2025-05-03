@@ -32,7 +32,7 @@ final class ProfilConducteurController extends AbstractController
     #[OA\Post(
         path: "/api/profilConducteur",
         summary: "Créer un profil de conducteur",
-        description: "Permet à un 'chauffeur' ou 'passager_chauffeur' de créer un profil de conducteur.",
+        description: "Permet à un 'chauffeur' ou 'passager_chauffeur' de créer son profil de conducteur.",
         requestBody: new OA\RequestBody(
             required: true,
             description: "Données du profil conducteur à créer",

@@ -42,6 +42,7 @@ final class HistoriqueController extends AbstractController
                 mediaType: "application/json",
                 schema: new OA\Schema(
                     type: "object",
+                    required: ["trajet"],
                     properties: [
                         new OA\Property(
                             property: "trajet",
@@ -476,6 +477,7 @@ final class HistoriqueController extends AbstractController
                 mediaType: "application/json",
                 schema: new OA\Schema(
                     type: "object",
+                    required: ["trajet"],
                     properties: [
                         new OA\Property(
                             property: "trajet",
