@@ -541,8 +541,26 @@ final class SecurityController extends AbstractController
                             new OA\Property(
                                 property: "errors",
                                 type: "array",
-                                items: new OA\Items(type: "string"),
-                                example: ["Données incohérente"]
+                                items: new OA\Items(
+                                    type: "string"
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 500,
+                description: "Erreur interne du serveur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Une erreur inattendue est survenue"
                             )
                         ]
                     )
