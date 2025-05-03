@@ -15,6 +15,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use OpenApi\Attributes as OA;
 
 #[Route("api/trajet", name: "app_api_trajet_")]
 final class TrajetController extends AbstractController
@@ -29,6 +30,156 @@ final class TrajetController extends AbstractController
     ) {}
 
     #[Route(methods: "POST")]
+    #[OA\Post(
+        path: '/api/trajet',
+        summary: 'Créer un nouveau trajet',
+        description: 'Permet à un CHAUFFEUR ou PASSAGER_CHAUFFEUR de créer un nouveau trajet',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    type: 'object',
+                    required: [
+                        'adresseDepart',
+                        'adresseArrivee',
+                        'dateDepart',
+                        'dateArrivee',
+                        'prix',
+                        'nombrePlacesDisponible',
+                        "statut"
+                    ],
+                    properties: [
+                        new OA\Property(
+                            property: "adresseDepart",
+                            type: "string",
+                            example: "45 rue de la ville XXXXXX La Ville"
+                        ),
+                        new OA\Property(
+                            property: "adresseArrivee",
+                            type: "string",
+                            example: "Parking de la ville XXXXXX La Ville"
+                        ),
+                        new OA\Property(
+                            property: "dateDepart",
+                            type: "string",
+                            format: "date-time",
+                        ),
+                        new OA\Property(
+                            property: "dateArrivee",
+                            type: "string",
+                            format: "date-time",
+                            example: "2025-04-14T09:00:00+02:00"
+                        ),
+                        new OA\Property(
+                            property: "prix",
+                            type: "string",
+                            example: "30"
+                        ),
+                        new OA\Property(
+                            property: "estEcologique",
+                            type: "boolean",
+                            example: false
+                        ),
+                        new OA\Property(
+                            property: "nombrePlacesDisponible",
+                            type: "integer",
+                            example: 5
+                        ),
+                        new OA\Property(
+                            property: "statut",
+                            type: "string",
+                            example: "EN_ATTENTE"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Trajet créée avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "adresseDepart",
+                                type: "string",
+                                example: "45 rue de la ville XXXXXX La Ville"
+                            ),
+                            new OA\Property(
+                                property: "adresseArrivee",
+                                type: "string",
+                                example: "Parking de la ville XXXXXX La Ville"
+                            ),
+                            new OA\Property(
+                                property: "dateDepart",
+                                type: "string",
+                                format: "date-time",
+                            ),
+                            new OA\Property(
+                                property: "dateArrivee",
+                                type: "string",
+                                format: "date-time",
+                                example: "2025-04-14T09:00:00+02:00"
+                            ),
+                            new OA\Property(
+                                property: "prix",
+                                type: "string",
+                                example: "30"
+                            ),
+                            new OA\Property(
+                                property: "estEcologique",
+                                type: "boolean",
+                                example: false
+                            ),
+                            new OA\Property(
+                                property: "nombrePlacesDisponible",
+                                type: "integer",
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: "statut",
+                                type: "string",
+                                example: "EN_ATTENTE"
+                            ),
+                            new OA\Property(
+                                property: "chauffeur",
+                                type: "object",
+                                properties: [
+                                    new OA\Property(
+                                        property: "id",
+                                        type: "integer",
+                                        example: 18
+                                    ),
+                                    new OA\Property(
+                                        property: "pseudo",
+                                        type: "string",
+                                        example: "testuser"
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Erreur de validation ou données invalides'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'L’utilisateur ne possède pas le rôle requis ou un passager n’est pas autorisé'
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function new(Request $request): JsonResponse
     {
@@ -164,6 +315,102 @@ final class TrajetController extends AbstractController
     }
 
     #[Route("/{id}", name: "show", methods: "GET")]
+    #[OA\Get(
+        path: '/api/trajet/{id}',
+        summary: 'Afficher un trajet spécifique',
+        description: 'Récupère les détails d’un trajet via son ID.',
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'Identifiant du trajet',
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Détails du trajet trouvés',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "adresseDepart",
+                                type: "string",
+                                example: "45 rue de la ville XXXXXX La Ville"
+                            ),
+                            new OA\Property(
+                                property: "adresseArrivee",
+                                type: "string",
+                                example: "Parking de la ville XXXXXX La Ville"
+                            ),
+                            new OA\Property(
+                                property: "dateDepart",
+                                type: "string",
+                                format: "date-time",
+                            ),
+                            new OA\Property(
+                                property: "dateArrivee",
+                                type: "string",
+                                format: "date-time",
+                                example: "2025-04-14T09:00:00+02:00"
+                            ),
+                            new OA\Property(
+                                property: "prix",
+                                type: "string",
+                                example: "30"
+                            ),
+                            new OA\Property(
+                                property: "estEcologique",
+                                type: "boolean",
+                                example: false
+                            ),
+                            new OA\Property(
+                                property: "nombrePlacesDisponible",
+                                type: "integer",
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: "statut",
+                                type: "string",
+                                example: "EN_ATTENTE"
+                            ),
+                            new OA\Property(
+                                property: "chauffeur",
+                                type: "object",
+                                properties: [
+                                    new OA\Property(
+                                        property: "id",
+                                        type: "integer",
+                                        example: 18
+                                    ),
+                                    new OA\Property(
+                                        property: "pseudo",
+                                        type: "string",
+                                        example: "testuser"
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Trajet non trouvé'
+            )
+        ]
+    )]
     public function show(int $id): JsonResponse
     {
         $trajet = $this->repository->findOneBy(['id' => $id]);
@@ -190,6 +437,163 @@ final class TrajetController extends AbstractController
     }
 
     #[Route("/{id}", name: "edit", methods: "PUT")]
+    #[OA\Put(
+        path: '/api/trajet/{id}',
+        summary: 'Modifier un trajet',
+        description: 'Permet à un chauffeur ou passager_chauffeur authentifié de modifier son trajet.',
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'Identifiant du trajet à modifier',
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(
+                            property: "adresseDepart",
+                            type: "string",
+                            example: "45 rue de la ville XXXXXX La Ville"
+                        ),
+                        new OA\Property(
+                            property: "adresseArrivee",
+                            type: "string",
+                            example: "Parking de la ville XXXXXX La Ville"
+                        ),
+                        new OA\Property(
+                            property: "dateDepart",
+                            type: "string",
+                            format: "date-time",
+                        ),
+                        new OA\Property(
+                            property: "dateArrivee",
+                            type: "string",
+                            format: "date-time",
+                            example: "2025-04-14T09:00:00+02:00"
+                        ),
+                        new OA\Property(
+                            property: "prix",
+                            type: "string",
+                            example: "30"
+                        ),
+                        new OA\Property(
+                            property: "estEcologique",
+                            type: "boolean",
+                            example: false
+                        ),
+                        new OA\Property(
+                            property: "nombrePlacesDisponible",
+                            type: "integer",
+                            example: 2
+                        ),
+                        new OA\Property(
+                            property: "statut",
+                            type: "string",
+                            example: "EN_ATTENTE"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Trajet modifié avec succès',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: 'id',
+                                type: 'integer',
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: 'adresseDepart',
+                                type: 'string',
+                                example: '45 rue de la ville XXXXXX La Ville'
+                            ),
+                            new OA\Property(
+                                property: 'adresseArrivee',
+                                type: 'string',
+                                example: 'Parking de la ville XXXXXX La Ville'
+                            ),
+                            new OA\Property(
+                                property: 'dateDepart',
+                                type: 'string',
+                                format: 'date-time',
+                                example: '2025-04-14T08:00:00+02:00'
+                            ),
+                            new OA\Property(
+                                property: 'dateArrivee',
+                                type: 'string',
+                                format: 'date-time',
+                                example: '2025-04-14T09:00:00+02:00'
+                            ),
+                            new OA\Property(
+                                property: 'prix',
+                                type: 'string',
+                                example: '30'
+                            ),
+                            new OA\Property(
+                                property: 'estEcologique',
+                                type: 'boolean',
+                                example: true
+                            ),
+                            new OA\Property(
+                                property: 'nombrePlacesDisponible',
+                                type: 'integer',
+                                example: 2
+                            ),
+                            new OA\Property(
+                                property: 'statut',
+                                type: 'string',
+                                example: 'EN_ATTENTE'
+                            ),
+                            new OA\Property(
+                                property: 'chauffeur',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(
+                                        property: 'id',
+                                        type: 'integer',
+                                        example: 18
+                                    ),
+                                    new OA\Property(
+                                        property: 'pseudo',
+                                        type: 'string',
+                                        example: 'testuser'
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Erreur de validation dans les données'
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Vous n'êtes pas autorisé à modifier ce trajet"
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Trajet ou passager introuvable'
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function edit(int $id, Request $request): JsonResponse
     {
@@ -356,6 +760,49 @@ final class TrajetController extends AbstractController
     }
 
     #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[OA\Delete(
+        path: '/api/trajet/{id}',
+        summary: 'Supprimer un trajet',
+        description: 'Supprimer un trajet si le trajet est à l’utilisateur connecté.',
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'Identifiant du trajet à supprimer',
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Trajet supprimé',
+                content: new OA\MediaType(
+                    mediaType: 'application/json',
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: 'message',
+                                type: 'string',
+                                example: 'Trajet supprimé avec succès'
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Utilisateur non autorisé à supprimer ce trajet'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Trajet non trouvé'
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function delete(int $id): JsonResponse
     {
@@ -385,7 +832,7 @@ final class TrajetController extends AbstractController
 
         return new JsonResponse(
             [
-                "message" => "Trajet supprimé"
+                "message" => "Trajet supprimé avec succès"
             ],
             Response::HTTP_OK
         );
