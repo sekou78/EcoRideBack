@@ -35,3 +35,15 @@
     * Teste Unitaire
         -$ composer require --dev phpunit/phpunit
             Exécutez le test avec: php bin/phpunit
+
+# Teste de l'application avec des fixtures
+
+    * Mise en place des composants pour les fixtures
+        - $ composer require --dev orm-fixtures
+    *Creation et parametrage de la BDD
+        - $ php bin/console database:doctrine:create (php bin/console d:d:c)
+        - $ php bin/console doctrine:migrations:migrate (php bin/console d:m:m)
+        - $ php bin/console doctrine:fixtures:load (php bin/console d:f:l)
+    * Mise en place de Faker
+        - $ composer require fakerphp/faker
+        - $ php bin/console doctrine:fixtures:load (php bin/console d:f:l)
