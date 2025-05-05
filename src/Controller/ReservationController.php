@@ -547,6 +547,8 @@ final class ReservationController extends AbstractController
             );
         }
 
+        $reservation->setUpdatedAt(new DateTimeImmutable());
+
         $this->manager->persist($reservation);
         $this->manager->flush();
 
