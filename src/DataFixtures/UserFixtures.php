@@ -10,8 +10,8 @@ use Faker;
 
 class UserFixtures extends Fixture
 {
-    public const User_NB_TUPLES = 5;
-    public const User_REFERENCE = 'user';
+    public const USER_NB_TUPLES = 5;
+    public const USER_REFERENCE = 'user';
 
     public function __construct(
         private UserPasswordHasherInterface $passwordHasher
@@ -27,7 +27,7 @@ class UserFixtures extends Fixture
             'ROLE_PASSAGER_CHAUFFEUR',
         ];
 
-        for ($i = 1; $i <= self::User_NB_TUPLES; $i++) {
+        for ($i = 1; $i <= self::USER_NB_TUPLES; $i++) {
             $role = $faker->randomElement($roles);
 
             $user = (new User())
@@ -61,7 +61,7 @@ class UserFixtures extends Fixture
             $manager->persist($user);
 
             $this->addReference(
-                self::User_REFERENCE . $i,
+                self::USER_REFERENCE . $i,
                 $user
             );
         }

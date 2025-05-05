@@ -11,8 +11,8 @@ use Faker;
 
 class TrajetFixtures extends Fixture implements DependentFixtureInterface
 {
-    public const Trajet_NB_TUPLES = 10;
-    public const Trajet_REFERENCE = 'trajet';
+    public const TRAJET_NB_TUPLES = 5;
+    public const TRAJET_REFERENCE = 'trajet';
 
     public function load(ObjectManager $manager): void
     {
@@ -23,9 +23,9 @@ class TrajetFixtures extends Fixture implements DependentFixtureInterface
         $passagers = [];
 
         // Récupération des utilisateurs
-        for ($i = 1; $i <= UserFixtures::User_NB_TUPLES; $i++) {
+        for ($i = 1; $i <= UserFixtures::USER_NB_TUPLES; $i++) {
             $user = $this->getReference(
-                UserFixtures::User_REFERENCE . $i,
+                UserFixtures::USER_REFERENCE . $i,
                 User::class
             );
 
@@ -65,7 +65,7 @@ class TrajetFixtures extends Fixture implements DependentFixtureInterface
             );
         }
 
-        for ($i = 1; $i <= self::Trajet_NB_TUPLES; $i++) {
+        for ($i = 1; $i <= self::TRAJET_NB_TUPLES; $i++) {
             $chauffeur = $faker->randomElement($chauffeurs);
             $dateDepart = $faker->dateTimeBetween('now', '+1 month');
             $dateArrivee = (clone $dateDepart)->modify('+' . mt_rand(30, 180) . ' minutes');
@@ -120,7 +120,7 @@ class TrajetFixtures extends Fixture implements DependentFixtureInterface
             $manager->persist($trajet);
 
             $this->addReference(
-                self::Trajet_REFERENCE . $i,
+                self::TRAJET_REFERENCE . $i,
                 $trajet
             );
         }
