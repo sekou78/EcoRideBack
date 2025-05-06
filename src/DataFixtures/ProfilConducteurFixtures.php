@@ -7,7 +7,7 @@ use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
-use Faker\Factory;
+use Faker;
 
 class ProfilConducteurFixtures extends Fixture implements DependentFixtureInterface
 {
@@ -16,7 +16,7 @@ class ProfilConducteurFixtures extends Fixture implements DependentFixtureInterf
 
     public function load(ObjectManager $manager): void
     {
-        $faker = Factory::create('fr_FR');
+        $faker = Faker\Factory::create('fr_FR');
 
         $vehicules = [
             ['marque' => 'Renault', 'modele' => 'Clio'],

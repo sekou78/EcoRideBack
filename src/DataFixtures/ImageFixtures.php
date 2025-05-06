@@ -2,33 +2,30 @@
 
 namespace App\DataFixtures;
 
-use App\Entity\Avis;
-use App\Entity\Reservation;
+use App\Entity\Image;
 use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 use Faker;
 
-class AvisFixtures extends Fixture implements DependentFixtureInterface
+class ImageFixtures extends Fixture implements DependentFixtureInterface
 {
-    public const AVIS_NB_TUPLES = 5;
-    public const AVIS_REFERENCE = 'avis';
+    public const IMAGE_NB_TUPLES = 5;
+    public const IMAGE_REFERENCE = 'image';
 
     public function load(ObjectManager $manager): void
     {
         $faker = Faker\Factory::create('fr_FR');
 
-        for ($i = 1; $i <= self::AVIS_NB_TUPLES; $i++) {
-            $avis = (new Avis())
-                ->setNote($faker->numberBetween(1, 5))
-                ->setCommentaire($faker->paragraph(3))
-                ->setIsVisible($faker->boolean())
-                ->setReservation(
-                    $this->getReference(
-                        ReservationFixtures::RESERVATION_REFERENCE . $i,
-                        Reservation::class
-                    )
+        for ($i = 1; $i <= self::IMAGE_NB_TUPLES; $i++) {
+            $image = (new Image())
+                ->setIdentite(
+                    $faker->image()
+                )
+                ->setFilePath(
+                    '/uploads/images/' . $faker->unique()
+                        ->numberBetween(1, 100) . '.jpg'
                 )
                 ->setUser(
                     $this->getReference(
@@ -53,11 +50,11 @@ class AvisFixtures extends Fixture implements DependentFixtureInterface
                     )
                 );
 
-            $manager->persist($avis);
+            $manager->persist($image);
 
             $this->addReference(
-                self::AVIS_REFERENCE . $i,
-                $avis
+                self::IMAGE_REFERENCE . $i,
+                $image
             );
         }
 
@@ -67,7 +64,6 @@ class AvisFixtures extends Fixture implements DependentFixtureInterface
     public function getDependencies(): array
     {
         return [
-            ReservationFixtures::class,
             UserFixtures::class,
         ];
     }
