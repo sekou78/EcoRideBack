@@ -55,14 +55,6 @@ final class SecurityController extends AbstractController
                             property: "pseudo",
                             type: "string",
                             example: "Dinga223"
-                        ),
-                        new OA\Property(
-                            property: "roles",
-                            type: "array",
-                            items: new OA\Items(
-                                type: "string",
-                                example: "ROLE_PASSAGER"
-                            )
                         )
                     ]
                 )
@@ -97,7 +89,7 @@ final class SecurityController extends AbstractController
                                 type: "array",
                                 items: new OA\Items(
                                     type: "string",
-                                    example: "ROLE_PASSAGER"
+                                    example: "ROLE_USER"
                                 )
                             ),
                             new OA\Property(
@@ -157,6 +149,8 @@ final class SecurityController extends AbstractController
 
         //Chaque utilisateur beneficie de 20 crédits à la création du compte
         $user->setCredits(20);
+
+        $user->setRoles(["ROLE_USER"]);
 
         // Etat du compte par défaut
         $user->setCompteSuspendu(false);

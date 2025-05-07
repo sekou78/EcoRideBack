@@ -47,3 +47,8 @@
     * Mise en place de Faker
         - $ composer require fakerphp/faker
         - $ php bin/console doctrine:fixtures:load (php bin/console d:f:l)
+
+# Appeler l'API depuis le front
+
+    * Installation de Nelmio Cors Bundle si c'est pas fait
+        - $ composer require nelmio/cors-bundle

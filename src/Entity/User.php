@@ -44,6 +44,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\All([
         new Assert\Choice(
             choices: [
+                'ROLE_USER',
                 'ROLE_PASSAGER',
                 'ROLE_CHAUFFEUR',
                 'ROLE_PASSAGER_CHAUFFEUR',
