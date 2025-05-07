@@ -82,7 +82,7 @@ final class SecurityController extends AbstractController
                             new OA\Property(
                                 property: "apiToken",
                                 type: "string",
-                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                                example: "31a023e......"
                             ),
                             new OA\Property(
                                 property: "roles",
