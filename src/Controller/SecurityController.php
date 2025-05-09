@@ -328,7 +328,7 @@ final class SecurityController extends AbstractController
         summary: "Les informations de l'objet User",
         responses: [
             new OA\Response(
-                response: 201,
+                response: 200,
                 description: "Les champs de l'utilisateur",
                 content: new OA\MediaType(
                     mediaType: "application/json",
@@ -395,7 +395,9 @@ final class SecurityController extends AbstractController
                         'apiToken',
                         'pseudo',
                         'nom',
-                        'prenom'
+                        'prenom',
+                        'credits',
+                        'telephone',
                     ]
                 ]
             );
