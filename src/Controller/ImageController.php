@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Image;
 use App\Entity\User;
 use App\Repository\ImageRepository;
+use App\Repository\UserRepository;
 use App\Service\ImageUploaderService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -736,5 +737,99 @@ final class ImageController extends AbstractController
             ['message' => 'Image supprimée avec succès.'],
             Response::HTTP_OK
         );
+    }
+
+    #[Route('/users/{id}/image', name: 'user_image', methods: 'GET')]
+    #[OA\Get(
+        path: '/api/image/users/{id}/image',
+        summary: "Récupère l'image de l'utilisateur connecté",
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: "ID de l'utilisateur",
+                schema: new OA\Schema(
+                    type: 'integer'
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Image retournée avec succès",
+                content: new OA\MediaType(
+                    mediaType: "image/jpeg"
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Non autorisé"
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé : vous n'êtes pas le propriétaire de l'image"
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Utilisateur ou image introuvable"
+            )
+        ]
+    )]
+    #[IsGranted('ROLE_USER')]
+    public function getUserImage(
+        int $id,
+        UserRepository $userRepository
+    ): Response {
+        // Vérifie l'utilisateur connecté
+        $currentUser = $this->security->getUser();
+        if (!$currentUser instanceof User) {
+            return new Response(
+                'Non autorisé',
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Récupère l'utilisateur ciblé
+        $targetUser = $userRepository->findOneBy(['id' => $id]);
+        if (!$targetUser) {
+            return new Response(
+                'Utilisateur non trouvé',
+                404
+            );
+        }
+
+        // Cherche l'image associée à cet utilisateur
+        $image = $this->repository->findOneBy(['user' => $targetUser]);
+        if (!$image) {
+            return new Response(
+                'Image non trouvée',
+                404
+            );
+        }
+
+        // Vérifie que l'utilisateur connecté est bien le propriétaire de l'image
+        if ($targetUser->getId() !== $currentUser->getId()) {
+            return new Response(
+                "Accès refusé",
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Récupère le chemin du fichier image
+        $imagePath = $this->getParameter(
+            'kernel.project_dir'
+        ) . '/public' . $image->getFilePath();
+
+        if (!file_exists($imagePath)) {
+            return new Response(
+                'Fichier image introuvable',
+                404
+            );
+        }
+
+        return new BinaryFileResponse($imagePath, 200, [
+            'Content-Type' => mime_content_type($imagePath)
+        ]);
     }
 }

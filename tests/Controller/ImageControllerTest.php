@@ -45,8 +45,8 @@
     //             "CONTENT_TYPE" => "application/json",
     //         ],
     //         json_encode([
-    //             "username" => "test2@mail.com",
-    //             "password" => "Azert$123",
+    //             "username" => "pauline.rocher@dupont.com",
+    //             "password" => "Azerty$123",
     //         ])
     //     );
 
@@ -252,6 +252,49 @@
     //     $this->assertNull(
     //         $deletedImage,
     //         "L'image avec l'ID " . $imageId . " n'a pas été supprimée en base de données."
+    //     );
+    // }
+
+    // public function testPassager_ChauffeurViewYourImageIsNotSuccessful(): void
+    // {
+    //     $this->client->followRedirects(false);
+
+    //     // Authentification pour récupérer le token
+    //     $this->client->request(
+    //         "POST",
+    //         "/api/login",
+    //         [],
+    //         [],
+    //         [
+    //             "CONTENT_TYPE" => "application/json",
+    //         ],
+    //         json_encode([
+    //             "username" => "pauline.rocher@dupont.com",
+    //             "password" => "Azerty$123",
+    //         ])
+    //     );
+
+    //     // Récupérer le token depuis la réponse
+    //     $responseData = json_decode($this->client->getResponse()->getContent(), true);
+    //     $apiToken = $responseData['apiToken'];
+
+    //     // Afficher l'image lier a l'utilisateur
+    //     $this->client->request(
+    //         'Get',
+    //         '/api/image/users/74/image',
+    //         [],
+    //         [],
+    //         [
+    //             'CONTENT_TYPE' => 'application/json',
+    //             'HTTP_X_AUTH_TOKEN' => $apiToken,
+    //         ]
+    //     );
+
+    //     // Vérifier que la réponse est un succès pour la suppression
+    //     $statusCode = $this->client->getResponse()->getStatusCode();
+    //     $this->assertEquals(
+    //         404,
+    //         $statusCode
     //     );
     // }
 // }
