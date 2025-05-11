@@ -27,7 +27,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'employes:read',
             'admin:read',
             'avis:read',
-            'image:read'
+            'image:read',
+            'user:read',
         ]
     )]
     private ?int $id = null;
@@ -35,6 +36,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank(message: 'Veuillez renseigner un email.')]
     #[Assert\Email(message: 'Veuillez renseigner un email valide.')]
     #[ORM\Column(length: 180)]
+    #[Groups(['user:read'])]
     private ?string $email = null;
 
     /**
@@ -65,6 +67,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         1 lettre miniscule,
         1chiffre et 1 caractères sepéciale.")]
     #[ORM\Column]
+    #[Groups(['user:read'])]
     private ?string $password = null;
 
     #[ORM\Column]
@@ -74,6 +77,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['user:read'])]
     private ?string $apiToken = null;
 
     #[Assert\NotBlank(message: 'Veuillez renseigner un pseudo.')]
@@ -88,27 +92,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'employes:read',
             'admin:read',
             'avis:read',
-            'image:read'
+            'image:read',
+            'user:read'
         ]
     )]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $nom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $prenom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $telephone = null;
 
     #[ORM\Column(length: 100, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $adresse = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $dateNaissance = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['user:read'])]
     private ?int $credits = null;
 
     /**
@@ -149,6 +160,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Reservation::class)]
     private Collection $reservations;
+
+    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[Groups(['user:read'])]
+    private ?Image $image = null;
 
 
     /** @throws \Exception */
@@ -564,6 +579,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $reservation->setUser(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getImage(): ?Image
+    {
+        return $this->image;
+    }
+
+    public function setImage(?Image $image): static
+    {
+        $this->image = $image;
 
         return $this;
     }

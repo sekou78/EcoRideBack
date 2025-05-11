@@ -5,7 +5,6 @@ namespace App\Controller;
 use App\Entity\Image;
 use App\Entity\User;
 use App\Repository\ImageRepository;
-use App\Repository\UserRepository;
 use App\Service\ImageUploaderService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -98,15 +97,18 @@ final class ImageController extends AbstractController
                         properties: [
                             new OA\Property(
                                 property: "id",
-                                type: "integer"
+                                type: "integer",
+                                example: 1
                             ),
                             new OA\Property(
-                                property: "identite",
-                                type: "string"
+                                property: "avatar",
+                                type: "string",
+                                example: "6820b7.....jpg"
                             ),
                             new OA\Property(
                                 property: "filePath",
-                                type: "string"
+                                type: "string",
+                                example: "/images/6820b7.....jpg"
                             ),
                             new OA\Property(
                                 property: "createdAt",
@@ -134,13 +136,11 @@ final class ImageController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function new(Request $request): JsonResponse
     {
-        // Récupérer l'utilisateur connecté
-        $user = $this->getUser();
-        if (!$user) {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse(
-                [
-                    'error' => 'User not authenticated'
-                ],
+                ['error' => 'Utilisateur non connu'],
                 Response::HTTP_UNAUTHORIZED
             );
         }
@@ -241,15 +241,17 @@ final class ImageController extends AbstractController
 
         // Créer une nouvelle entité Image
         $image = new Image();
-        $image->setIdentite($fileName);
+        $image->setAvatar($fileName);
         $image->setFilePath('/uploads/images/' . $fileName);
-
-        // Associer l'image à l'utilisateur
-        $image->setUser($user);
 
         $image->setCreatedAt(new \DateTimeImmutable());
 
         $this->manager->persist($image);
+
+        // Associer l'image à l'utilisateur
+        $user->setImage($image);
+        $this->manager->persist($user);
+
         $this->manager->flush();
 
         return new JsonResponse(
@@ -324,7 +326,7 @@ final class ImageController extends AbstractController
         }
 
         // Vérifier que l'utilisateur connecté est bien celui lié à l'image
-        if ($image->getUser()?->getId() !== $user->getId()) {
+        if ($user->getImage()?->getId() !== $image->getId()) {
             throw $this->createAccessDeniedException(
                 "Vous n'avez pas accès à cette image."
             );
@@ -445,11 +447,11 @@ final class ImageController extends AbstractController
         int $id,
         Request $request
     ): Response {
-        // Récupérer l'utilisateur connecté
-        $user = $this->getUser();
-        if (!$user) {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse(
-                ['error' => 'User not authenticated'],
+                ['error' => 'Utilisateur non connu'],
                 Response::HTTP_UNAUTHORIZED
             );
         }
@@ -465,7 +467,7 @@ final class ImageController extends AbstractController
         }
 
         //Vérifier que l'utilisateur est bien le créateur
-        if ($image->getUser() !== $user) {
+        if ($user->getImage()?->getId() !== $image->getId()) {
             return new JsonResponse(
                 ['error' => "Vous n'êtes pas autorisé à modifier cette image."],
                 Response::HTTP_FORBIDDEN
@@ -575,6 +577,8 @@ final class ImageController extends AbstractController
 
         // Mettre à jour l'image dans la base de données
         $image->setFilePath('/uploads/images/' . $fileName);
+
+        $image->setAvatar($fileName); // Ajouter cette ligne
 
         $image->setUpdatedAt(new DateTimeImmutable());
 
@@ -708,14 +712,18 @@ final class ImageController extends AbstractController
         }
 
         // Vérifier que l'image appartient à l'utilisateur connecté
-        if ($image->getUser()?->getId() !== $user->getId()) {
+        if ($user->getImage()?->getId() !== $image->getId()) {
             return new JsonResponse(
                 ['error' => "Vous n'avez pas accès à cette image, pour la supprimée."],
                 Response::HTTP_FORBIDDEN
             );
         }
 
-        // Construire le chemin absolu du fichier
+        // Supprimer le lien entre l'utilisateur et l'image
+        $user->setImage(null);
+        $this->manager->persist($user);
+
+        // Supprimer le fichier physique
         $filePath = $this->getParameter(
             'kernel.project_dir'
         )
@@ -737,99 +745,5 @@ final class ImageController extends AbstractController
             ['message' => 'Image supprimée avec succès.'],
             Response::HTTP_OK
         );
-    }
-
-    #[Route('/users/{id}/image', name: 'user_image', methods: 'GET')]
-    #[OA\Get(
-        path: '/api/image/users/{id}/image',
-        summary: "Récupère l'image de l'utilisateur connecté",
-        parameters: [
-            new OA\Parameter(
-                name: 'id',
-                in: 'path',
-                required: true,
-                description: "ID de l'utilisateur",
-                schema: new OA\Schema(
-                    type: 'integer'
-                )
-            )
-        ],
-        responses: [
-            new OA\Response(
-                response: 200,
-                description: "Image retournée avec succès",
-                content: new OA\MediaType(
-                    mediaType: "image/jpeg"
-                )
-            ),
-            new OA\Response(
-                response: 401,
-                description: "Non autorisé"
-            ),
-            new OA\Response(
-                response: 403,
-                description: "Accès refusé : vous n'êtes pas le propriétaire de l'image"
-            ),
-            new OA\Response(
-                response: 404,
-                description: "Utilisateur ou image introuvable"
-            )
-        ]
-    )]
-    #[IsGranted('ROLE_USER')]
-    public function getUserImage(
-        int $id,
-        UserRepository $userRepository
-    ): Response {
-        // Vérifie l'utilisateur connecté
-        $currentUser = $this->security->getUser();
-        if (!$currentUser instanceof User) {
-            return new Response(
-                'Non autorisé',
-                Response::HTTP_UNAUTHORIZED
-            );
-        }
-
-        // Récupère l'utilisateur ciblé
-        $targetUser = $userRepository->findOneBy(['id' => $id]);
-        if (!$targetUser) {
-            return new Response(
-                'Utilisateur non trouvé',
-                404
-            );
-        }
-
-        // Cherche l'image associée à cet utilisateur
-        $image = $this->repository->findOneBy(['user' => $targetUser]);
-        if (!$image) {
-            return new Response(
-                'Image non trouvée',
-                404
-            );
-        }
-
-        // Vérifie que l'utilisateur connecté est bien le propriétaire de l'image
-        if ($targetUser->getId() !== $currentUser->getId()) {
-            return new Response(
-                "Accès refusé",
-                Response::HTTP_FORBIDDEN
-            );
-        }
-
-        // Récupère le chemin du fichier image
-        $imagePath = $this->getParameter(
-            'kernel.project_dir'
-        ) . '/public' . $image->getFilePath();
-
-        if (!file_exists($imagePath)) {
-            return new Response(
-                'Fichier image introuvable',
-                404
-            );
-        }
-
-        return new BinaryFileResponse($imagePath, 200, [
-            'Content-Type' => mime_content_type($imagePath)
-        ]);
     }
 }

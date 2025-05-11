@@ -17,7 +17,13 @@ class Image
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BLOB, nullable: true)]
-    private $identite;
+    #[Groups(['image:read'])]
+    private $avatar;
+
+    #[ORM\Column(length: 255)]
+    #[Groups(['image:read'])]
+    private ?string $filePath = null;
+
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -25,27 +31,19 @@ class Image
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\Column(length: 255)]
-    #[Groups(['image:read'])]
-    private ?string $filePath = null;
-
-    #[ORM\OneToOne(cascade: ['persist'])]
-    #[ORM\JoinColumn(nullable: true)]
-    private ?User $user = null;
-
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getIdentite()
+    public function getAvatar()
     {
-        return $this->identite;
+        return $this->avatar;
     }
 
-    public function setIdentite($identite): static
+    public function setAvatar($avatar): static
     {
-        $this->identite = $identite;
+        $this->avatar = $avatar;
 
         return $this;
     }
@@ -82,18 +80,6 @@ class Image
     public function setFilePath(string $filePath): static
     {
         $this->filePath = $filePath;
-
-        return $this;
-    }
-
-    public function getUser(): ?User
-    {
-        return $this->user;
-    }
-
-    public function setUser(?User $user): static
-    {
-        $this->user = $user;
 
         return $this;
     }
