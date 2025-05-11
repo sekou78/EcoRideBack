@@ -319,8 +319,8 @@ final class ProfilConducteurController extends AbstractController
         ],
         responses: [
             new OA\Response(
-                response: 201,
-                description: "Profil de conducteur créé avec succès",
+                response: 200,
+                description: "Profil de conducteur récupéré avec succès",
                 content: new OA\MediaType(
                     mediaType: "application/json",
                     schema: new OA\Schema(
@@ -418,7 +418,43 @@ final class ProfilConducteurController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function show(int $id): JsonResponse
     {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Vérifier si l'utilisateur a le rôle "chauffeur" ou "passager_chauffeur"
+        if (
+            !in_array('ROLE_CHAUFFEUR', $user->getRoles()) &&
+            !in_array('ROLE_PASSAGER_CHAUFFEUR', $user->getRoles())
+        ) {
+            return new JsonResponse(
+                ['error' => "Vous devez être 'chauffeur' ou 'passager_chauffeur'."],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Récupérer le profil conducteur
         $profilConducteur = $this->repository->findOneBy(['id' => $id]);
+
+        if (!$profilConducteur) {
+            return new JsonResponse(
+                ['error' => 'Profil Conducteur non trouvé'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Vérifier que le profil appartient bien à l'utilisateur connecté
+        if ($profilConducteur->getUser()?->getId() !== $user->getId()) {
+            return new JsonResponse(
+                ['error' => "Vous n'avez pas accès à ce profil pour le modifier."],
+                Response::HTTP_FORBIDDEN
+            );
+        }
 
         if ($profilConducteur) {
             $responseData = $this->serializer->serialize(
@@ -653,7 +689,10 @@ final class ProfilConducteurController extends AbstractController
         $profilConducteur = $this->repository->findOneBy(['id' => $id]);
 
         if (!$profilConducteur) {
-            return new JsonResponse(['error' => 'Profil Conducteur non trouvé'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(
+                ['error' => 'Profil Conducteur non trouvé'],
+                Response::HTTP_NOT_FOUND
+            );
         }
 
         // Vérifier que le profil appartient bien à l'utilisateur connecté

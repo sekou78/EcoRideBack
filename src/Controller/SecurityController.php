@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Image;
 use App\Entity\User;
+use App\Repository\ProfilConducteurRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,7 +25,8 @@ final class SecurityController extends AbstractController
         private SerializerInterface $serializer,
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
-        private ValidatorInterface $validator
+        private ValidatorInterface $validator,
+        private ProfilConducteurRepository $profilConducteurRepository
     ) {}
     #[Route('/registration', name: 'registration', methods: 'POST')]
     #[OA\Post(
@@ -383,23 +385,20 @@ final class SecurityController extends AbstractController
     {
         $user = $this->getUser();
 
+        $profilConducteur = $this->profilConducteurRepository
+            ->findOneBy(
+                ['user' => $user]
+            );
+
         $responseData = $this->serializer
             ->serialize(
-                $user,
+                $profilConducteur,
                 'json',
-                [
-                    AbstractNormalizer::ATTRIBUTES => [
-                        'id',
-                        'email',
-                        'roles',
-                        'apiToken',
-                        'pseudo',
-                        'nom',
-                        'prenom',
-                        'credits',
-                        'telephone',
-                    ]
-                ]
+                ['groups' => [
+                    'profilConducteur:read',
+                    'user:read',
+                    'image:read'
+                ]]
             );
 
         return new JsonResponse(
@@ -580,8 +579,6 @@ final class SecurityController extends AbstractController
                 [AbstractNormalizer::OBJECT_TO_POPULATE => $this->getUser()],
             );
 
-        $user->setUpdatedAt(new \DateTimeImmutable());
-
         // Hachage du mot de passe si modifié
         if (isset($request->toArray()['password'])) {
             $user->setPassword(
@@ -607,6 +604,22 @@ final class SecurityController extends AbstractController
         }
 
         // Mettre à jour l'image si fourni
+        // if ($data['image']) {
+        //     $image = $this->manager
+        //         ->getRepository(
+        //             Image::class
+        //         )
+        //         ->find(
+        //             $data['image']
+        //         );
+        //     if (!$image) {
+        //         return new JsonResponse(
+        //             ['error' => 'Image non trouvée'],
+        //             Response::HTTP_BAD_REQUEST
+        //         );
+        //     }
+        //     $user->setImage($image);
+        // }
         if ($data['image']) {
             $image = $this->manager
                 ->getRepository(
@@ -615,14 +628,113 @@ final class SecurityController extends AbstractController
                 ->find(
                     $data['image']
                 );
-            if (!$image) {
+            //Vérifier que l'utilisateur est bien le créateur
+            if ($image->getUser() !== $user) {
                 return new JsonResponse(
-                    ['error' => 'Image non trouvée'],
+                    ['error' => "Vous n'êtes pas autorisé à modifier cette image."],
+                    Response::HTTP_FORBIDDEN
+                );
+            }
+
+            // Récupérer le fichier envoyé
+            $uploadedFile = $request
+                ->files
+                ->get('image');
+
+            if (!$uploadedFile) {
+                return new JsonResponse(
+                    ['error' => 'No file uploaded'],
                     Response::HTTP_BAD_REQUEST
                 );
             }
-            $image->setUser($user);
+
+            // Vérifier l'extension et le type MIME
+            $allowedExtensions = [
+                'jpg',
+                'jpeg',
+                'png',
+                'gif',
+                'webp'
+            ];
+            $allowedMimeTypes = [
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/webp'
+            ];
+
+            $fileExtension = strtolower(
+                $uploadedFile
+                    ->getClientOriginalExtension()
+            );
+            $mimeType = $uploadedFile->getMimeType();
+
+            if (
+                !in_array(
+                    $fileExtension,
+                    $allowedExtensions
+                )
+                ||
+                !in_array(
+                    $mimeType,
+                    $allowedMimeTypes
+                )
+            ) {
+                return new JsonResponse(
+                    ['error' => 'Invalid file type'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+
+            // Supprimer l'ancien fichier s'il existe
+            $oldFilePath = $this->getParameter(
+                'kernel.project_dir'
+            )
+                .
+                '/public'
+                .
+                $image
+                ->getFilePath();
+
+            if (file_exists($oldFilePath)) {
+                unlink($oldFilePath);
+            }
+
+            // Générer un nouveau nom de fichier
+            $fileName = uniqid() . '-' . preg_replace(
+                '/[^a-zA-Z0-9\._-]/',
+                '',
+                $uploadedFile->getClientOriginalName()
+            );
+
+            // Mettre à jour l'image dans la base de données
+            $image->setFilePath('/uploads/images/' . $fileName);
+
+            $image->setUpdatedAt(new DateTimeImmutable());
+
+            $this->manager->flush();
+
+            // Chemin absolu du fichier
+            $imagePath = $this->getParameter(
+                'kernel.project_dir'
+            )
+                .
+                '/public'
+                .
+                $image
+                ->getFilePath();
+
+            // Vérification de l'existence du fichier
+            if (!file_exists($imagePath)) {
+                return new JsonResponse(
+                    ['error' => 'File not found after upload'],
+                    Response::HTTP_INTERNAL_SERVER_ERROR
+                );
+            }
+            $user->setImage($image);
         }
+
+        $user->setUpdatedAt(new \DateTimeImmutable());
 
         $this->manager->flush();
 

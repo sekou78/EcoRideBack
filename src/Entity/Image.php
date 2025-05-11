@@ -17,7 +17,6 @@ class Image
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BLOB, nullable: true)]
-    #[Groups(['image:read'])]
     private $identite;
 
     #[ORM\Column]
@@ -27,10 +26,11 @@ class Image
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['image:read'])]
     private ?string $filePath = null;
 
     #[ORM\OneToOne(cascade: ['persist'])]
-    #[Groups(['image:read'])]
+    #[ORM\JoinColumn(nullable: true)]
     private ?User $user = null;
 
     public function getId(): ?int
