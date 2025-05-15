@@ -145,6 +145,20 @@ final class ImageController extends AbstractController
             );
         }
 
+        // Vérifier si l'utilisateur a déjà une image
+        if ($user->getImage()) {
+            return new JsonResponse(
+                [
+                    'image' => json_decode($this->serializer->serialize(
+                        $user->getImage(),
+                        'json',
+                        ['groups' => 'image:read']
+                    ), true)
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
         // Vérifier si c'est une requête multipart (fichier normal)
         $uploadedFile = $request
             ->files

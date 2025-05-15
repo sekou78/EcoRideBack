@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Repository\ProfilConducteurRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -17,16 +18,21 @@ use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpKernel\KernelInterface;
 
 #[Route('/api', name: 'app_api_')]
 final class SecurityController extends AbstractController
 {
+    private string $uploadDir;
+
     public function __construct(
         private SerializerInterface $serializer,
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
         private ValidatorInterface $validator,
-        private ProfilConducteurRepository $profilConducteurRepository
+        private ProfilConducteurRepository $profilConducteurRepository,
+        private Security $security,
+        private KernelInterface $kernel
     ) {}
     #[Route('/registration', name: 'registration', methods: 'POST')]
     #[OA\Post(
@@ -384,25 +390,36 @@ final class SecurityController extends AbstractController
     public function me(): JsonResponse
     {
         $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['error' => 'Utilisateur non connecté'], Response::HTTP_UNAUTHORIZED);
+        }
 
         $profilConducteur = $this->profilConducteurRepository
             ->findOneBy(
                 ['user' => $user]
             );
 
-        $responseData = $this->serializer
+        $image = $user->getImage();
+
+        $responseData = [
+            "user" => $user,
+            "image" => $image,
+            "profilConducteur" => $profilConducteur,
+        ];
+
+        $json = $this->serializer
             ->serialize(
-                $profilConducteur,
+                $responseData,
                 'json',
                 ['groups' => [
-                    'profilConducteur:read',
                     'user:read',
-                    'image:read'
+                    'image:read',
+                    'profilConducteur:read',
                 ]]
             );
 
         return new JsonResponse(
-            $responseData,
+            $json,
             Response::HTTP_OK,
             [],
             true
@@ -565,10 +582,14 @@ final class SecurityController extends AbstractController
     )]
     public function edit(Request $request): JsonResponse
     {
-        $data = json_decode(
-            $request->getContent(),
-            true
-        );
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
 
         //Désérialisation des données de la requête pour mettre à jour l'utilisateur
         $user = $this->serializer
@@ -579,16 +600,7 @@ final class SecurityController extends AbstractController
                 [AbstractNormalizer::OBJECT_TO_POPULATE => $this->getUser()],
             );
 
-        // Hachage du mot de passe si modifié
-        if (isset($request->toArray()['password'])) {
-            $user->setPassword(
-                $this->passwordHasher
-                    ->hashPassword(
-                        $user,
-                        $user->getPassword()
-                    )
-            );
-        }
+        $user->setUpdatedAt(new \DateTimeImmutable());
 
         $errors = $this->validator->validate($user);
         if (count($errors) > 0) {
@@ -603,139 +615,6 @@ final class SecurityController extends AbstractController
             );
         }
 
-        // Mettre à jour l'image si fourni
-        // if ($data['image']) {
-        //     $image = $this->manager
-        //         ->getRepository(
-        //             Image::class
-        //         )
-        //         ->find(
-        //             $data['image']
-        //         );
-        //     if (!$image) {
-        //         return new JsonResponse(
-        //             ['error' => 'Image non trouvée'],
-        //             Response::HTTP_BAD_REQUEST
-        //         );
-        //     }
-        //     $user->setImage($image);
-        // }
-        if ($data['image']) {
-            $image = $this->manager
-                ->getRepository(
-                    Image::class
-                )
-                ->find(
-                    $data['image']
-                );
-            //Vérifier que l'utilisateur est bien le créateur
-            if ($image->getUser() !== $user) {
-                return new JsonResponse(
-                    ['error' => "Vous n'êtes pas autorisé à modifier cette image."],
-                    Response::HTTP_FORBIDDEN
-                );
-            }
-
-            // Récupérer le fichier envoyé
-            $uploadedFile = $request
-                ->files
-                ->get('image');
-
-            if (!$uploadedFile) {
-                return new JsonResponse(
-                    ['error' => 'No file uploaded'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-
-            // Vérifier l'extension et le type MIME
-            $allowedExtensions = [
-                'jpg',
-                'jpeg',
-                'png',
-                'gif',
-                'webp'
-            ];
-            $allowedMimeTypes = [
-                'image/jpeg',
-                'image/png',
-                'image/gif',
-                'image/webp'
-            ];
-
-            $fileExtension = strtolower(
-                $uploadedFile
-                    ->getClientOriginalExtension()
-            );
-            $mimeType = $uploadedFile->getMimeType();
-
-            if (
-                !in_array(
-                    $fileExtension,
-                    $allowedExtensions
-                )
-                ||
-                !in_array(
-                    $mimeType,
-                    $allowedMimeTypes
-                )
-            ) {
-                return new JsonResponse(
-                    ['error' => 'Invalid file type'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-
-            // Supprimer l'ancien fichier s'il existe
-            $oldFilePath = $this->getParameter(
-                'kernel.project_dir'
-            )
-                .
-                '/public'
-                .
-                $image
-                ->getFilePath();
-
-            if (file_exists($oldFilePath)) {
-                unlink($oldFilePath);
-            }
-
-            // Générer un nouveau nom de fichier
-            $fileName = uniqid() . '-' . preg_replace(
-                '/[^a-zA-Z0-9\._-]/',
-                '',
-                $uploadedFile->getClientOriginalName()
-            );
-
-            // Mettre à jour l'image dans la base de données
-            $image->setFilePath('/uploads/images/' . $fileName);
-
-            $image->setUpdatedAt(new DateTimeImmutable());
-
-            $this->manager->flush();
-
-            // Chemin absolu du fichier
-            $imagePath = $this->getParameter(
-                'kernel.project_dir'
-            )
-                .
-                '/public'
-                .
-                $image
-                ->getFilePath();
-
-            // Vérification de l'existence du fichier
-            if (!file_exists($imagePath)) {
-                return new JsonResponse(
-                    ['error' => 'File not found after upload'],
-                    Response::HTTP_INTERNAL_SERVER_ERROR
-                );
-            }
-            $user->setImage($image);
-        }
-
-        $user->setUpdatedAt(new \DateTimeImmutable());
-
         $this->manager->flush();
 
         // Retourner la réponse JSON avec les informations mises à jour
@@ -746,8 +625,6 @@ final class SecurityController extends AbstractController
                 [
                     AbstractNormalizer::ATTRIBUTES => [
                         'id',
-                        'email',
-                        'pseudo',
                         'roles',
                         'nom',
                         'prenom',

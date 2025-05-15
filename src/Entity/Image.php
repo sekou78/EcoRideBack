@@ -17,7 +17,6 @@ class Image
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BLOB, nullable: true)]
-    #[Groups(['image:read'])]
     private $avatar;
 
     #[ORM\Column(length: 255)]

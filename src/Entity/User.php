@@ -55,6 +55,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         )
     ])]
     #[ORM\Column]
+    #[Groups(['user:read'])]
     private array $roles = [];
 
     /**
@@ -132,6 +133,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, ProfilConducteur>
      */
     #[ORM\OneToMany(targetEntity: ProfilConducteur::class, mappedBy: 'user')]
+    #[Groups(['profilConducteur:read'])]
     private Collection $profilConducteurs;
 
     /**
@@ -593,5 +595,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->image = $image;
 
         return $this;
+    }
+
+    public function hasImage(): bool
+    {
+        return $this->image !== null;
     }
 }

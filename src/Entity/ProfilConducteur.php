@@ -55,7 +55,6 @@ class ProfilConducteur
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'profilConducteurs')]
-    #[Groups(['profilConducteur:read'])]
     private ?User $user = null;
 
     public function getId(): ?int
