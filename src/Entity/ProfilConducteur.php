@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\ProfilConducteurRepository;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
@@ -19,6 +18,10 @@ class ProfilConducteur
     #[ORM\Column(length: 20)]
     #[Groups(['profilConducteur:read'])]
     private ?string $plaqueImmatriculation = null;
+
+    #[ORM\Column]
+    #[Groups(['profilConducteur:read'])]
+    private ?\DateTimeImmutable $dateImmatriculation = null;
 
     #[ORM\Column(length: 50)]
     #[Groups(['profilConducteur:read'])]
@@ -38,15 +41,7 @@ class ProfilConducteur
 
     #[ORM\Column]
     #[Groups(['profilConducteur:read'])]
-    private ?bool $accepteFumeur = null;
-
-    #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
-    private ?bool $accepteAnimaux = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['profilConducteur:read'])]
-    private ?string $autresPreferences = null;
+    private ?bool $electrique = null;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -70,6 +65,18 @@ class ProfilConducteur
     public function setPlaqueImmatriculation(string $plaqueImmatriculation): static
     {
         $this->plaqueImmatriculation = $plaqueImmatriculation;
+
+        return $this;
+    }
+
+    public function getDateImmatriculation(): ?\DateTimeImmutable
+    {
+        return $this->dateImmatriculation;
+    }
+
+    public function setDateImmatriculation(\DateTimeImmutable $dateImmatriculation): static
+    {
+        $this->dateImmatriculation = $dateImmatriculation;
 
         return $this;
     }
@@ -122,38 +129,14 @@ class ProfilConducteur
         return $this;
     }
 
-    public function isAccepteFumeur(): ?bool
+    public function isElectrique(): ?bool
     {
-        return $this->accepteFumeur;
+        return $this->electrique;
     }
 
-    public function setAccepteFumeur(bool $accepteFumeur): static
+    public function setElectrique(bool $electrique): static
     {
-        $this->accepteFumeur = $accepteFumeur;
-
-        return $this;
-    }
-
-    public function isAccepteAnimaux(): ?bool
-    {
-        return $this->accepteAnimaux;
-    }
-
-    public function setAccepteAnimaux(bool $accepteAnimaux): static
-    {
-        $this->accepteAnimaux = $accepteAnimaux;
-
-        return $this;
-    }
-
-    public function getAutresPreferences(): ?string
-    {
-        return $this->autresPreferences;
-    }
-
-    public function setAutresPreferences(?string $autresPreferences): static
-    {
-        $this->autresPreferences = $autresPreferences;
+        $this->electrique = $electrique;
 
         return $this;
     }

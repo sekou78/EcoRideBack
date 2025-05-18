@@ -45,9 +45,7 @@ final class ProfilConducteurController extends AbstractController
                         "modele",
                         "couleur",
                         "nombrePlaces",
-                        "accepteFumeur",
-                        "accepteAnimaux",
-                        "autresPreferences"
+                        "electrique"
                     ],
                     properties: [
                         new OA\Property(
@@ -80,22 +78,10 @@ final class ProfilConducteurController extends AbstractController
                             example: 5
                         ),
                         new OA\Property(
-                            property: "accepteFumeur",
+                            property: "electrique",
                             type: "boolean",
-                            description: "Indique si le véhicule accepte les fumeurs",
+                            description: "Indique si le véhicule est electrique",
                             example: true
-                        ),
-                        new OA\Property(
-                            property: "accepteAnimaux",
-                            type: "boolean",
-                            description: "Indique si le véhicule accepte les animaux",
-                            example: false
-                        ),
-                        new OA\Property(
-                            property: "autresPreferences",
-                            type: "string",
-                            description: "Autres préférences concernant le véhicule",
-                            example: "Pas de musique forte"
                         ),
                         new OA\Property(
                             property: "user",
@@ -157,19 +143,9 @@ final class ProfilConducteurController extends AbstractController
                                 example: 5
                             ),
                             new OA\Property(
-                                property: "accepteFumeur",
+                                property: "electrique",
                                 type: "boolean",
                                 example: true
-                            ),
-                            new OA\Property(
-                                property: "accepteAnimaux",
-                                type: "boolean",
-                                example: false
-                            ),
-                            new OA\Property(
-                                property: "autresPreferences",
-                                type: "string",
-                                example: "Pas de musique forte"
                             ),
                             new OA\Property(
                                 property: "user",
@@ -357,19 +333,9 @@ final class ProfilConducteurController extends AbstractController
                                 example: 5
                             ),
                             new OA\Property(
-                                property: "accepteFumeur",
+                                property: "electrique",
                                 type: "boolean",
                                 example: true
-                            ),
-                            new OA\Property(
-                                property: "accepteAnimaux",
-                                type: "boolean",
-                                example: false
-                            ),
-                            new OA\Property(
-                                property: "autresPreferences",
-                                type: "string",
-                                example: "Pas de musique forte"
                             ),
                             new OA\Property(
                                 property: "user",
@@ -528,19 +494,9 @@ final class ProfilConducteurController extends AbstractController
                             example: 3
                         ),
                         new OA\Property(
-                            property: "accepteFumeur",
+                            property: "electrique",
                             type: "boolean",
                             example: false
-                        ),
-                        new OA\Property(
-                            property: "accepteAnimaux",
-                            type: "boolean",
-                            example: true
-                        ),
-                        new OA\Property(
-                            property: "autresPreferences",
-                            type: "string",
-                            example: "Moments de discussion posés"
                         )
                     ]
                 )
@@ -586,19 +542,9 @@ final class ProfilConducteurController extends AbstractController
                                 example: 3
                             ),
                             new OA\Property(
-                                property: "accepteFumeur",
+                                property: "electrique",
                                 type: "boolean",
                                 example: false
-                            ),
-                            new OA\Property(
-                                property: "accepteAnimaux",
-                                type: "boolean",
-                                example: true
-                            ),
-                            new OA\Property(
-                                property: "autresPreferences",
-                                type: "string",
-                                example: "Moments de discussion posés"
                             ),
                             new OA\Property(
                                 property: "updatedAt",
@@ -870,6 +816,112 @@ final class ProfilConducteurController extends AbstractController
         return new JsonResponse(
             ['message' => 'Profil Conducteur supprimé avec succès.'],
             Response::HTTP_OK
+        );
+    }
+
+    #[Route("/", name: "index", methods: "GET")]
+    #[OA\Get(
+        path: '/api/profilConducteur/',
+        summary: 'Liste vehicule de l’utilisateur connecté',
+        description: 'Retourne tous les vehicules liés à l’utilisateur connecté',
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Liste des vehicules',
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: 'object',
+                        properties: [
+                            new OA\Property(
+                                property: 'id',
+                                type: 'integer',
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: 'plaqueImmatriculation',
+                                type: 'string',
+                                example: 'AB-123-CD'
+                            ),
+                            new OA\Property(
+                                property: 'dateImmatriculation',
+                                type: 'string',
+                                format: 'date-time',
+                                example: '2010-10-10T00:00:00+02:00'
+                            ),
+                            new OA\Property(
+                                property: 'modele',
+                                type: 'string',
+                                example: 'Clio'
+                            ),
+                            new OA\Property(
+                                property: 'marque',
+                                type: 'string',
+                                example: 'Renault'
+                            ),
+                            new OA\Property(
+                                property: 'couleur',
+                                type: 'string',
+                                example: 'Rouge'
+                            ),
+                            new OA\Property(
+                                property: 'nombrePlaces',
+                                type: 'integer',
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: 'electrique',
+                                type: 'boolean',
+                                example: true
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Utilisateur non authentifié',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(
+                            property: 'error',
+                            type: 'string',
+                            example: 'Utilisateur non connu'
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
+    #[IsGranted('ROLE_USER')]
+    public function index(): JsonResponse
+    {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Récupérer tous les profils conducteur liés à cet utilisateur
+        $profilsConducteur = $this->repository
+            ->findBy(
+                ['user' => $user]
+            );
+
+        $json = $this->serializer->serialize(
+            $profilsConducteur,
+            'json',
+            ['groups' => ['profilConducteur:read']]
+        );
+
+        return new JsonResponse(
+            $json,
+            Response::HTTP_OK,
+            [],
+            true
         );
     }
 }

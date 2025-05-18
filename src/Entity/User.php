@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -167,6 +168,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:read'])]
     private ?Image $image = null;
 
+    #[ORM\Column(nullable: true)]
+    #[Groups(['user:read'])]
+    private ?bool $accepteFumeur = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Groups(['user:read'])]
+    private ?bool $accepteAnimaux = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['user:read'])]
+    private ?string $autresPreferences = null;
 
     /** @throws \Exception */
     public function __construct()
@@ -600,5 +612,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function hasImage(): bool
     {
         return $this->image !== null;
+    }
+    public function isAccepteFumeur(): ?bool
+    {
+        return $this->accepteFumeur;
+    }
+
+    public function setAccepteFumeur(bool $accepteFumeur): static
+    {
+        $this->accepteFumeur = $accepteFumeur;
+
+        return $this;
+    }
+
+    public function isAccepteAnimaux(): ?bool
+    {
+        return $this->accepteAnimaux;
+    }
+
+    public function setAccepteAnimaux(bool $accepteAnimaux): static
+    {
+        $this->accepteAnimaux = $accepteAnimaux;
+
+        return $this;
+    }
+
+    public function getAutresPreferences(): ?string
+    {
+        return $this->autresPreferences;
+    }
+
+    public function setAutresPreferences(?string $autresPreferences): static
+    {
+        $this->autresPreferences = $autresPreferences;
+
+        return $this;
     }
 }
