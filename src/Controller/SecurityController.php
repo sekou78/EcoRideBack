@@ -2,7 +2,6 @@
 
 namespace App\Controller;
 
-use App\Entity\Image;
 use App\Entity\User;
 use App\Repository\ProfilConducteurRepository;
 use DateTimeImmutable;
@@ -401,10 +400,13 @@ final class SecurityController extends AbstractController
 
         $image = $user->getImage();
 
+        $trajet = $user->getTrajet();
+
         $responseData = [
             "user" => $user,
             "image" => $image,
             "profilConducteur" => $profilConducteur,
+            "trajet" => $trajet,
         ];
 
         $json = $this->serializer
@@ -415,6 +417,7 @@ final class SecurityController extends AbstractController
                     'user:read',
                     'image:read',
                     'profilConducteur:read',
+                    'trajet:read',
                 ]]
             );
 
@@ -462,22 +465,6 @@ final class SecurityController extends AbstractController
                             property: "dateNaissance",
                             type: "string",
                             example: "10/10/1910"
-                        ),
-                        new OA\Property(
-                            property: "pseudo",
-                            type: "string",
-                            example: "Dinga223"
-                        ),
-                        new OA\Property(
-                            property: "password",
-                            type: "string",
-                            format: "password",
-                            example: "Azerty$1"
-                        ),
-                        new OA\Property(
-                            property: "image",
-                            type: "integer",
-                            example: 7
                         ),
                         new OA\Property(
                             property: "roles",

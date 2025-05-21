@@ -41,12 +41,16 @@ final class TrajetController extends AbstractController
                 schema: new OA\Schema(
                     type: 'object',
                     required: [
-                        'adresseDepart',
-                        'adresseArrivee',
-                        'dateDepart',
-                        'dateArrivee',
-                        'prix',
-                        'nombrePlacesDisponible',
+                        "adresseDepart",
+                        "adresseArrivee",
+                        "dateDepart",
+                        "dateArrivee",
+                        "heureDepart",
+                        "dureeVoyage",
+                        "peage",
+                        "prix",
+                        "estEcologique",
+                        "nombrePlacesDisponible",
                         "statut"
                     ],
                     properties: [
@@ -64,12 +68,28 @@ final class TrajetController extends AbstractController
                             property: "dateDepart",
                             type: "string",
                             format: "date-time",
+                            example: "10/10/2025"
                         ),
                         new OA\Property(
                             property: "dateArrivee",
                             type: "string",
                             format: "date-time",
-                            example: "2025-04-14T09:00:00+02:00"
+                            example: "10/10/2025"
+                        ),
+                        new OA\Property(
+                            property: "heureDepart",
+                            type: "string",
+                            example: "09:00"
+                        ),
+                        new OA\Property(
+                            property: "dureeVoyage",
+                            type: "string",
+                            example: "01:00"
+                        ),
+                        new OA\Property(
+                            property: "peage",
+                            type: "boolean",
+                            example: true
                         ),
                         new OA\Property(
                             property: "prix",
@@ -129,6 +149,21 @@ final class TrajetController extends AbstractController
                                 type: "string",
                                 format: "date-time",
                                 example: "2025-04-14T09:00:00+02:00"
+                            ),
+                            new OA\Property(
+                                property: "heureDepart",
+                                type: "string",
+                                example: "09:00"
+                            ),
+                            new OA\Property(
+                                property: "dureeVoyage",
+                                type: "string",
+                                example: "01:00"
+                            ),
+                            new OA\Property(
+                                property: "peage",
+                                type: "boolean",
+                                example: true
                             ),
                             new OA\Property(
                                 property: "prix",
@@ -224,6 +259,9 @@ final class TrajetController extends AbstractController
                 Response::HTTP_FORBIDDEN
             );
         }
+
+        // Ajouter l'utilisateur au trajet
+        $trajet->addUser($user);
 
         // Récupérer les utilisateurs passagers
         if (
@@ -366,6 +404,21 @@ final class TrajetController extends AbstractController
                                 example: "2025-04-14T09:00:00+02:00"
                             ),
                             new OA\Property(
+                                property: "heureDepart",
+                                type: "string",
+                                example: "09:00"
+                            ),
+                            new OA\Property(
+                                property: "dureeVoyage",
+                                type: "string",
+                                example: "01:00"
+                            ),
+                            new OA\Property(
+                                property: "peage",
+                                type: "boolean",
+                                example: true
+                            ),
+                            new OA\Property(
                                 property: "prix",
                                 type: "string",
                                 example: "30"
@@ -473,32 +526,48 @@ final class TrajetController extends AbstractController
                             property: "dateDepart",
                             type: "string",
                             format: "date-time",
+                            example: "11/10/2025"
                         ),
                         new OA\Property(
                             property: "dateArrivee",
                             type: "string",
                             format: "date-time",
-                            example: "2025-04-14T09:00:00+02:00"
+                            example: "11/10/2025"
                         ),
                         new OA\Property(
-                            property: "prix",
+                            property: "heureDepart",
                             type: "string",
-                            example: "30"
+                            example: "10:00"
                         ),
                         new OA\Property(
-                            property: "estEcologique",
+                            property: "dureeVoyage",
+                            type: "string",
+                            example: "01:30"
+                        ),
+                        new OA\Property(
+                            property: "peage",
                             type: "boolean",
                             example: false
                         ),
                         new OA\Property(
+                            property: "prix",
+                            type: "string",
+                            example: "20"
+                        ),
+                        new OA\Property(
+                            property: "estEcologique",
+                            type: "boolean",
+                            example: true
+                        ),
+                        new OA\Property(
                             property: "nombrePlacesDisponible",
                             type: "integer",
-                            example: 2
+                            example: 3
                         ),
                         new OA\Property(
                             property: "statut",
                             type: "string",
-                            example: "EN_ATTENTE"
+                            example: "EN_COURS"
                         )
                     ]
                 )
@@ -519,46 +588,61 @@ final class TrajetController extends AbstractController
                                 example: 1
                             ),
                             new OA\Property(
-                                property: 'adresseDepart',
-                                type: 'string',
-                                example: '45 rue de la ville XXXXXX La Ville'
+                                property: "adresseDepart",
+                                type: "string",
+                                example: "45 rue de la ville XXXXXX La Ville"
                             ),
                             new OA\Property(
-                                property: 'adresseArrivee',
-                                type: 'string',
-                                example: 'Parking de la ville XXXXXX La Ville'
+                                property: "adresseArrivee",
+                                type: "string",
+                                example: "Parking de la ville XXXXXX La Ville"
                             ),
                             new OA\Property(
-                                property: 'dateDepart',
-                                type: 'string',
-                                format: 'date-time',
-                                example: '2025-04-14T08:00:00+02:00'
+                                property: "dateDepart",
+                                type: "string",
+                                format: "date-time",
+                                example: "11/10/2025"
                             ),
                             new OA\Property(
-                                property: 'dateArrivee',
-                                type: 'string',
-                                format: 'date-time',
-                                example: '2025-04-14T09:00:00+02:00'
+                                property: "dateArrivee",
+                                type: "string",
+                                format: "date-time",
+                                example: "11/10/2025"
                             ),
                             new OA\Property(
-                                property: 'prix',
-                                type: 'string',
-                                example: '30'
+                                property: "heureDepart",
+                                type: "string",
+                                example: "10:00"
                             ),
                             new OA\Property(
-                                property: 'estEcologique',
-                                type: 'boolean',
+                                property: "dureeVoyage",
+                                type: "string",
+                                example: "01:30"
+                            ),
+                            new OA\Property(
+                                property: "peage",
+                                type: "boolean",
+                                example: false
+                            ),
+                            new OA\Property(
+                                property: "prix",
+                                type: "string",
+                                example: "20"
+                            ),
+                            new OA\Property(
+                                property: "estEcologique",
+                                type: "boolean",
                                 example: true
                             ),
                             new OA\Property(
-                                property: 'nombrePlacesDisponible',
-                                type: 'integer',
-                                example: 2
+                                property: "nombrePlacesDisponible",
+                                type: "integer",
+                                example: 3
                             ),
                             new OA\Property(
-                                property: 'statut',
-                                type: 'string',
-                                example: 'EN_ATTENTE'
+                                property: "statut",
+                                type: "string",
+                                example: "EN_COURS"
                             ),
                             new OA\Property(
                                 property: 'chauffeur',
@@ -660,12 +744,24 @@ final class TrajetController extends AbstractController
             $trajet->setPrix($data['prix']);
         }
 
-        if ($data['estEcologique']) {
-            $trajet->setEstEcologique($data['estEcologique']);
+        if (array_key_exists('estEcologique', $data)) {
+            $trajet->setEstEcologique((bool) $data['estEcologique']);
         }
 
         if ($data['nombrePlacesDisponible']) {
             $trajet->setNombrePlacesDisponible($data['nombrePlacesDisponible']);
+        }
+
+        if (!empty($data['heureDepart'])) {
+            $trajet->setHeureDepart(new \DateTime($data['heureDepart']));
+        }
+
+        if (!empty($data['dureeVoyage'])) {
+            $trajet->setDureeVoyage(new \DateTime($data['dureeVoyage']));
+        }
+
+        if (array_key_exists('peage', $data)) {
+            $trajet->setPeage((bool) $data['peage']);
         }
 
         if ($data['statut']) {

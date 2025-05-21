@@ -16,7 +16,14 @@ class Trajet
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read', 'historique:read', 'trajet:read'])]
+    #[Groups(
+        [
+            'reservation:read',
+            'historique:read',
+            'trajet:read',
+            'user:read'
+        ]
+    )]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
@@ -34,6 +41,18 @@ class Trajet
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups(['trajet:read'])]
     private ?\DateTimeInterface $dateArrivee = null;
+
+    #[ORM\Column(type: Types::TIME_MUTABLE)]
+    #[Groups(['trajet:read'])]
+    private ?\DateTimeInterface $heureDepart = null;
+
+    #[ORM\Column(type: Types::TIME_MUTABLE)]
+    #[Groups(['trajet:read'])]
+    private ?\DateTimeInterface $dureeVoyage = null;
+
+    #[ORM\Column]
+    #[Groups(['trajet:read'])]
+    private ?bool $peage = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     #[Groups(['trajet:read'])]
@@ -56,7 +75,13 @@ class Trajet
         message: 'Le statut doit être "EN_ATTENTE", "EN_COURS" ou "TERMINEE".'
     )]
     #[ORM\Column(length: 255)]
-    #[Groups(['reservation:read', 'historique:read', 'trajet:read'])]
+    #[Groups(
+        [
+            'reservation:read',
+            'historique:read',
+            'trajet:read'
+        ]
+    )]
     private ?string $statut = null;
 
     /**
@@ -189,6 +214,42 @@ class Trajet
     public function setDateArrivee(\DateTimeInterface $dateArrivee): static
     {
         $this->dateArrivee = $dateArrivee;
+
+        return $this;
+    }
+
+    public function getHeureDepart(): ?\DateTimeInterface
+    {
+        return $this->heureDepart;
+    }
+
+    public function setHeureDepart(\DateTimeInterface $heureDepart): static
+    {
+        $this->heureDepart = $heureDepart;
+
+        return $this;
+    }
+
+    public function getDureeVoyage(): ?\DateTimeInterface
+    {
+        return $this->dureeVoyage;
+    }
+
+    public function setDureeVoyage(\DateTimeInterface $dureeVoyage): static
+    {
+        $this->dureeVoyage = $dureeVoyage;
+
+        return $this;
+    }
+
+    public function isPeage(): ?bool
+    {
+        return $this->peage;
+    }
+
+    public function setPeage(bool $peage): static
+    {
+        $this->peage = $peage;
 
         return $this;
     }

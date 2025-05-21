@@ -94,8 +94,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'employes:read',
             'admin:read',
             'avis:read',
-            'image:read',
-            'user:read'
+            'image:read'
         ]
     )]
     private ?string $pseudo = null;
