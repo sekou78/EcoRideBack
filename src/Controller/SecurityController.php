@@ -390,7 +390,12 @@ final class SecurityController extends AbstractController
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
-            return new JsonResponse(['error' => 'Utilisateur non connecté'], Response::HTTP_UNAUTHORIZED);
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non connecté'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
         }
 
         $profilConducteur = $this->profilConducteurRepository
