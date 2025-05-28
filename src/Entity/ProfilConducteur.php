@@ -12,35 +12,83 @@ class ProfilConducteur
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?int $id = null;
 
     #[ORM\Column(length: 20)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?string $plaqueImmatriculation = null;
 
     #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?\DateTimeImmutable $dateImmatriculation = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?string $modele = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?string $marque = null;
 
     #[ORM\Column(length: 20)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?string $couleur = null;
 
     #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?int $nombrePlaces = null;
 
     #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read'
+        ]
+    )]
     private ?bool $electrique = null;
 
     #[ORM\Column]

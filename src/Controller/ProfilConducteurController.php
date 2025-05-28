@@ -42,7 +42,9 @@ final class ProfilConducteurController extends AbstractController
                     type: "object",
                     required: [
                         "plaqueImmatriculation",
+                        "dateImmatriculation",
                         "modele",
+                        "marque",
                         "couleur",
                         "nombrePlaces",
                         "electrique"
@@ -52,6 +54,12 @@ final class ProfilConducteurController extends AbstractController
                             property: "plaqueImmatriculation",
                             type: "string",
                             example: "AB-123-CD"
+                        ),
+                        new OA\Property(
+                            property: "dateImmatriculation",
+                            type: "string",
+                            format: "date-time",
+                            example: "2010-10-10T00:00:00+02:00"
                         ),
                         new OA\Property(
                             property: "modele",
@@ -82,22 +90,6 @@ final class ProfilConducteurController extends AbstractController
                             type: "boolean",
                             description: "Indique si le véhicule est electrique",
                             example: true
-                        ),
-                        new OA\Property(
-                            property: "user",
-                            type: "object",
-                            properties: [
-                                new OA\Property(
-                                    property: "id",
-                                    type: "integer",
-                                    example: 18
-                                ),
-                                new OA\Property(
-                                    property: "pseudo",
-                                    type: "string",
-                                    example: "testuser"
-                                )
-                            ]
                         )
                     ]
                 )
@@ -123,6 +115,12 @@ final class ProfilConducteurController extends AbstractController
                                 example: "AB-123-CD"
                             ),
                             new OA\Property(
+                                property: "dateImmatriculation",
+                                type: "string",
+                                format: "date-time",
+                                example: "2010-10-10T00:00:00+02:00"
+                            ),
+                            new OA\Property(
                                 property: "modele",
                                 type: "string",
                                 example: "Clio"
@@ -146,22 +144,6 @@ final class ProfilConducteurController extends AbstractController
                                 property: "electrique",
                                 type: "boolean",
                                 example: true
-                            ),
-                            new OA\Property(
-                                property: "user",
-                                type: "object",
-                                properties: [
-                                    new OA\Property(
-                                        property: "id",
-                                        type: "integer",
-                                        example: 18
-                                    ),
-                                    new OA\Property(
-                                        property: "pseudo",
-                                        type: "string",
-                                        example: "testuser"
-                                    )
-                                ]
                             ),
                             new OA\Property(
                                 property: "createdAt",
@@ -313,6 +295,12 @@ final class ProfilConducteurController extends AbstractController
                                 example: "AB-123-CD"
                             ),
                             new OA\Property(
+                                property: "dateImmatriculation",
+                                type: "string",
+                                format: "date-time",
+                                example: "2010-10-10T00:00:00+02:00"
+                            ),
+                            new OA\Property(
                                 property: "modele",
                                 type: "string",
                                 example: "Clio"
@@ -336,22 +324,6 @@ final class ProfilConducteurController extends AbstractController
                                 property: "electrique",
                                 type: "boolean",
                                 example: true
-                            ),
-                            new OA\Property(
-                                property: "user",
-                                type: "object",
-                                properties: [
-                                    new OA\Property(
-                                        property: "id",
-                                        type: "integer",
-                                        example: 18
-                                    ),
-                                    new OA\Property(
-                                        property: "pseudo",
-                                        type: "string",
-                                        example: "testuser"
-                                    )
-                                ]
                             ),
                             new OA\Property(
                                 property: "createdAt",
@@ -474,6 +446,12 @@ final class ProfilConducteurController extends AbstractController
                             example: "EF-456-GH"
                         ),
                         new OA\Property(
+                            property: "dateImmatriculation",
+                            type: "string",
+                            format: "date-time",
+                            example: "2010-05-25T00:00:00+02:00"
+                        ),
+                        new OA\Property(
                             property: "modele",
                             type: "string",
                             example: "Scala"
@@ -520,6 +498,12 @@ final class ProfilConducteurController extends AbstractController
                                 property: "plaqueImmatriculation",
                                 type: "string",
                                 example: "EF-456-GH"
+                            ),
+                            new OA\Property(
+                                property: "dateImmatriculation",
+                                type: "string",
+                                format: "date-time",
+                                example: "2010-05-25T00:00:00+02:00"
                             ),
                             new OA\Property(
                                 property: "modele",

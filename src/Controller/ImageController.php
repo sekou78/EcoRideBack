@@ -21,7 +21,7 @@ use Symfony\Component\Serializer\SerializerInterface;
 use OpenApi\Attributes as OA;
 
 #[Route('api/image', name: 'app_api_image_')]
-#[IsGranted('ROLE_USER')]
+// #[IsGranted('ROLE_USER')]
 final class ImageController extends AbstractController
 {
     private string $uploadDir;
@@ -320,16 +320,16 @@ final class ImageController extends AbstractController
             )
         ]
     )]
-    #[IsGranted('ROLE_USER')]
+    // #[IsGranted('ROLE_USER')]
     public function show(int $id): BinaryFileResponse
     {
-        // Récupérer l'utilisateur connecté
-        $user = $this->security->getUser();
-        if (!$user instanceof User) {
-            return new BinaryFileResponse(
-                Response::HTTP_UNAUTHORIZED
-            );
-        }
+        // // Récupérer l'utilisateur connecté
+        // $user = $this->security->getUser();
+        // if (!$user instanceof User) {
+        //     return new BinaryFileResponse(
+        //         Response::HTTP_UNAUTHORIZED
+        //     );
+        // }
 
         // Récupération de l'image en base de données
         $image = $this->repository->findOneBy(['id' => $id]);
@@ -339,12 +339,12 @@ final class ImageController extends AbstractController
             throw $this->createNotFoundException('Image non trouvée');
         }
 
-        // Vérifier que l'utilisateur connecté est bien celui lié à l'image
-        if ($user->getImage()?->getId() !== $image->getId()) {
-            throw $this->createAccessDeniedException(
-                "Vous n'avez pas accès à cette image."
-            );
-        }
+        // // Vérifier que l'utilisateur connecté est bien celui lié à l'image
+        // if ($user->getImage()?->getId() !== $image->getId()) {
+        //     throw $this->createAccessDeniedException(
+        //         "Vous n'avez pas accès à cette image."
+        //     );
+        // }
 
         // Chemin absolu du fichier sur le serveur
         $imagePath = $this

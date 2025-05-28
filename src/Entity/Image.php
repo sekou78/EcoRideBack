@@ -13,14 +13,14 @@ class Image
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['image:read'])]
+    #[Groups(['image:read', 'trajet:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BLOB, nullable: true)]
     private $avatar;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['image:read'])]
+    #[Groups(['image:read', 'trajet:read'])]
     private ?string $filePath = null;
 
 

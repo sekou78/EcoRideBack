@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\ProfilConducteur;
 use App\Entity\Trajet;
 use App\Entity\User;
 use App\Repository\TrajetRepository;
@@ -16,6 +17,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use OpenApi\Attributes as OA;
+use Knp\Component\Pager\PaginatorInterface;
 
 #[Route("api/trajet", name: "app_api_trajet_")]
 final class TrajetController extends AbstractController
@@ -51,7 +53,8 @@ final class TrajetController extends AbstractController
                         "prix",
                         "estEcologique",
                         "nombrePlacesDisponible",
-                        "statut"
+                        "statut",
+                        "vehiculeId"
                     ],
                     properties: [
                         new OA\Property(
@@ -110,6 +113,11 @@ final class TrajetController extends AbstractController
                             property: "statut",
                             type: "string",
                             example: "EN_ATTENTE"
+                        ),
+                        new OA\Property(
+                            property: "vehiculeId",
+                            type: "integer",
+                            example: 3
                         )
                     ]
                 )
@@ -184,6 +192,53 @@ final class TrajetController extends AbstractController
                                 property: "statut",
                                 type: "string",
                                 example: "EN_ATTENTE"
+                            ),
+                            new OA\Property(
+                                property: "vehicule",
+                                type: "object",
+                                properties: [
+                                    new OA\Property(
+                                        property: "id",
+                                        type: "integer",
+                                        example: 3
+                                    ),
+                                    new OA\Property(
+                                        property: "plaqueImmatriculation",
+                                        type: "string",
+                                        example: "AB-123-CD"
+                                    ),
+                                    new OA\Property(
+                                        property: "dateImmatriculation",
+                                        type: "string",
+                                        format: "date-time",
+                                        example: "2010-10-10T00:00:00+02:00"
+                                    ),
+                                    new OA\Property(
+                                        property: "modele",
+                                        type: "string",
+                                        example: "Clio"
+                                    ),
+                                    new OA\Property(
+                                        property: "marque",
+                                        type: "string",
+                                        example: "Renault"
+                                    ),
+                                    new OA\Property(
+                                        property: "couleur",
+                                        type: "string",
+                                        example: "Rouge"
+                                    ),
+                                    new OA\Property(
+                                        property: "nombrePlaces",
+                                        type: "integer",
+                                        example: 5
+                                    ),
+                                    new OA\Property(
+                                        property: "electrique",
+                                        type: "boolean",
+                                        example: true
+                                    ),
+                                ],
                             ),
                             new OA\Property(
                                 property: "chauffeur",
@@ -327,6 +382,39 @@ final class TrajetController extends AbstractController
         // Assigner l'utilisateur authentifié comme chauffeur du trajet
         $trajet->setChauffeur($user);
 
+        // Assigner un vehicule du chauffeur au trajet
+        // Récupération de l'ID du véhicule envoyé dans le JSON
+        if (empty($data['vehiculeId'])) {
+            return new JsonResponse(
+                ['error' => 'Aucun identifiant de véhicule fourni.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $profilConducteur = $this->manager
+            ->getRepository(ProfilConducteur::class)
+            ->find(
+                $data['vehiculeId']
+            );
+
+        if (!$profilConducteur) {
+            return new JsonResponse(
+                ['error' => 'Véhicule non trouvé.'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Vérification que le véhicule appartient bien à l'utilisateur connecté
+        if ($profilConducteur->getUser() !== $user) {
+            return new JsonResponse(
+                ['error' => 'Ce véhicule ne vous appartient pas.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Affectation du véhicule au trajet
+        $trajet->setVehicule($profilConducteur);
+
         $trajet->setCreatedAt(new DateTimeImmutable());
 
         $this->manager->persist($trajet);
@@ -335,7 +423,7 @@ final class TrajetController extends AbstractController
         $responseData = $this->serializer->serialize(
             $trajet,
             'json',
-            ['groups' => 'trajet:read']
+            ['groups' => 'trajet:read', 'trajetChoisi:read']
         );
 
         $location = $this->urlGenerator->generate(
@@ -472,7 +560,7 @@ final class TrajetController extends AbstractController
             $responseData = $this->serializer->serialize(
                 $trajet,
                 'json',
-                ['groups' => 'trajet:read']
+                ['groups' => 'trajet:read', 'trajetChoisi:read']
             );
 
             return new JsonResponse(
@@ -768,6 +856,28 @@ final class TrajetController extends AbstractController
             $trajet->setStatut($data['statut']);
         }
 
+        // Gestion du véhicule (optionnel)
+        if (!empty($data['vehiculeId'])) {
+            $profilConducteur = $this->manager
+                ->getRepository(ProfilConducteur::class)
+                ->find(
+                    $data['vehiculeId']
+                );
+            if (!$profilConducteur) {
+                return new JsonResponse(
+                    ['error' => 'Véhicule non trouvé.'],
+                    Response::HTTP_NOT_FOUND
+                );
+            }
+            if ($profilConducteur->getUser() !== $user) {
+                return new JsonResponse(
+                    ['error' => 'Ce véhicule ne vous appartient pas.'],
+                    Response::HTTP_FORBIDDEN
+                );
+            }
+            $trajet->setVehicule($profilConducteur);
+        }
+
         $errors = $this->validator->validate($data);
         if (count($errors) > 0) {
             $errorMessages = [];
@@ -844,7 +954,7 @@ final class TrajetController extends AbstractController
         $responseData = $this->serializer->serialize(
             $trajet,
             'json',
-            ['groups' => 'trajet:read']
+            ['groups' => 'trajet:read', 'trajetChoisi:read']
         );
 
         return new JsonResponse(
@@ -931,6 +1041,122 @@ final class TrajetController extends AbstractController
                 "message" => "Trajet supprimé avec succès"
             ],
             Response::HTTP_OK
+        );
+    }
+
+    #[Route("/api/listeTrajets", name: "list", methods: "GET")]
+    public function list(
+        Request $request,
+        PaginatorInterface $paginator
+    ): JsonResponse {
+        // Récupérer les paramètres de filtre
+        $adresseDepartFilter = $request->query->get('adresseDepart');
+        $adresseArriveeFilter = $request->query->get('adresseArrivee');
+        $dateDepartInput = $request->query->get('dateDepart');
+
+        // Création de la requête pour récupérer tous les Trajets
+        $queryBuilder = $this->manager
+            ->getRepository(Trajet::class)
+            ->createQueryBuilder('a');
+
+        // Filtre sur l’adresse de départ
+        if ($adresseDepartFilter) {
+            $queryBuilder->andWhere('a.adresseDepart LIKE :adresseDepart')
+                ->setParameter('adresseDepart', '%' . $adresseDepartFilter . '%');
+        }
+
+        // Filtre sur l’adresse d’arrivée
+        if ($adresseArriveeFilter) {
+            $queryBuilder->andWhere('a.adresseArrivee LIKE :adresseArrivee')
+                ->setParameter('adresseArrivee', '%' . $adresseArriveeFilter . '%');
+        }
+
+        // Filtre sur la date de départ (acceptant plusieurs formats)
+        if ($dateDepartInput) {
+            // Formats de date acceptés (à étendre si nécessaire)
+            $formats = ['Y-m-d', 'd/m/Y', 'd-m-Y', 'm/d/Y'];
+            $dateDepartFilter = null;
+
+            // On essaie de parser l'entrée avec chaque format
+            foreach ($formats as $format) {
+                $parsedDate = \DateTime::createFromFormat($format, $dateDepartInput);
+                if ($parsedDate && $parsedDate->format($format) === $dateDepartInput) {
+                    $dateDepartFilter = $parsedDate;
+                    break; // stoppe dès qu’un format est valide
+                }
+            }
+
+            // Si une date valide est trouvée, on filtre sur toute la journée
+            if ($dateDepartFilter) {
+                // Début et fin de la journée pour ignorer les heures
+                $startOfDay = (clone $dateDepartFilter)->setTime(0, 0, 0);
+                $endOfDay = (clone $dateDepartFilter)->setTime(23, 59, 59);
+
+                $queryBuilder
+                    ->andWhere('a.dateDepart BETWEEN :startOfDay AND :endOfDay')
+                    ->setParameter('startOfDay', $startOfDay)
+                    ->setParameter('endOfDay', $endOfDay);
+            }
+        }
+
+        // Tri personnalisé : EN_COURS puis EN_ATTENTE puis les autres
+        $queryBuilder->addSelect("
+            CASE 
+              WHEN a.statut = 'EN_COURS' THEN 1
+              WHEN a.statut = 'EN_ATTENTE' THEN 2
+              ELSE 3
+            END AS HIDDEN statutOrdre
+        ");
+
+        $queryBuilder->orderBy('statutOrdre', 'ASC');
+        $queryBuilder->addOrderBy('a.dateDepart', 'DESC');
+
+        // Application de la pagination (page et nombre d’éléments par page)
+        $pagination = $paginator->paginate(
+            $queryBuilder,
+            $request->query->getInt('page', 1), // Numéro de page par défaut = 1
+            5 // Nombre d’éléments par page
+        );
+
+        // Formatage des résultats pour l’API (JSON)
+        $items = array_map(function ($trajet) {
+            return [
+                'id' => $trajet->getId(),
+                'adresseDepart' => $trajet->getAdresseDepart(),
+                'adresseArrivee' => $trajet->getAdresseArrivee(),
+                'placesDisponibles' => $trajet->getNombrePlacesDisponible(),
+                'prix' => $trajet->getPrix(),
+                'dateDepart' => $trajet->getDateDepart()?->format("d-m-Y"),
+                'heureDepart' => $trajet->getHeureDepart()?->format("H:i"),
+                'dateArrivee' => $trajet->getDateArrivee()?->format("d-m-Y"),
+                'dureeVoyage' => $trajet->getDureeVoyage()?->format("H:i"),
+                'peage' => $trajet->isPeage() ? 'oui' : 'non',
+                'estEcologique' => $trajet->isEstEcologique() ? 'oui' : 'non',
+                'chauffeur' => $trajet->getChauffeur()->getPseudo(),
+                'image' => $trajet->getChauffeur()->getImage()
+                    ? $this->generateUrl('app_api_image_show', ['id' => $trajet->getChauffeur()->getImage()->getId()])
+                    : null,
+                'statut' => $trajet->getStatut(),
+                // 'noteChauffeur' => $trajet->getUser()->getNote("isVisible", true),
+                'createdAt' => $trajet->getCreatedAt()?->format("d-m-Y"),
+            ];
+        }, (array) $pagination->getItems());
+
+        // Structure complète de la réponse avec pagination
+        $data = [
+            'currentPage' => $pagination->getCurrentPageNumber(),
+            'totalItems' => $pagination->getTotalItemCount(),
+            'itemsPerPage' => $pagination->getItemNumberPerPage(),
+            'totalPages' => ceil(
+                $pagination->getTotalItemCount() / $pagination->getItemNumberPerPage()
+            ),
+            'items' => $items,
+        ];
+
+        // Retourner la réponse JSON
+        return new JsonResponse(
+            $data,
+            JsonResponse::HTTP_OK
         );
     }
 }

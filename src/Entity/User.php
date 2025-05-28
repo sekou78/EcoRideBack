@@ -133,7 +133,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, ProfilConducteur>
      */
     #[ORM\OneToMany(targetEntity: ProfilConducteur::class, mappedBy: 'user')]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(['profilConducteur:read', 'trajet:read'])]
     private Collection $profilConducteurs;
 
     /**
@@ -164,19 +164,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $reservations;
 
     #[ORM\OneToOne(cascade: ['persist', 'remove'])]
-    #[Groups(['user:read'])]
+    #[Groups(['user:read', 'trajet:read'])]
     private ?Image $image = null;
 
     #[ORM\Column(nullable: true)]
-    #[Groups(['user:read'])]
+    #[Groups(['user:read', 'trajet:read'])]
     private ?bool $accepteFumeur = null;
 
     #[ORM\Column(nullable: true)]
-    #[Groups(['user:read'])]
+    #[Groups(['user:read', 'trajet:read'])]
     private ?bool $accepteAnimaux = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['user:read'])]
+    #[Groups(['user:read', 'trajet:read'])]
     private ?string $autresPreferences = null;
 
     /** @throws \Exception */

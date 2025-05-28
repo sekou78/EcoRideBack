@@ -154,6 +154,11 @@ class Trajet
     #[Groups(['trajet:read'])]
     private ?User $chauffeur = null;
 
+    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['trajet:read', 'trajetChoisi:read'])]
+    private ?ProfilConducteur $vehicule = null;
+
     public function getChauffeur(): ?User
     {
         return $this->chauffeur;
@@ -409,6 +414,18 @@ class Trajet
         if ($this->users->removeElement($user)) {
             $user->removeTrajet($this);
         }
+
+        return $this;
+    }
+
+    public function getVehicule(): ?ProfilConducteur
+    {
+        return $this->vehicule;
+    }
+
+    public function setVehicule(ProfilConducteur $vehicule): static
+    {
+        $this->vehicule = $vehicule;
 
         return $this;
     }
