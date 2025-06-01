@@ -31,6 +31,7 @@ class Reservation
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'reservations')]
+    #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]
     #[Groups(['reservation:read', 'trajet:read'])]
     private ?Trajet $trajet = null;
 

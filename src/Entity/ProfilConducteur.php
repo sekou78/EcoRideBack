@@ -16,7 +16,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?int $id = null;
@@ -26,7 +27,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?string $plaqueImmatriculation = null;
@@ -36,7 +38,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?\DateTimeImmutable $dateImmatriculation = null;
@@ -46,7 +49,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?string $modele = null;
@@ -56,7 +60,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?string $marque = null;
@@ -66,7 +71,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?string $couleur = null;
@@ -76,7 +82,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?int $nombrePlaces = null;
@@ -86,7 +93,8 @@ class ProfilConducteur
         [
             'profilConducteur:read',
             'trajet:read',
-            'trajetChoisi:read'
+            'trajetChoisi:read',
+            'reservation:read'
         ]
     )]
     private ?bool $electrique = null;

@@ -644,4 +644,36 @@ final class ReservationController extends AbstractController
             Response::HTTP_OK
         );
     }
+
+    #[Route('/', name: 'index', methods: 'GET')]
+    #[IsGranted('ROLE_USER')]
+    public function index(): JsonResponse
+    {
+        $user = $this->security->getUser();
+
+        // Requête avec tri personnalisé sur le statut
+        $qb = $this->repository->createQueryBuilder('r')
+            ->where('r.user = :user')
+            ->setParameter('user', $user)
+            ->orderBy("CASE 
+                    WHEN r.statut = 'CONFIRMEE' THEN 1
+                    WHEN r.statut = 'EN_ATTENTE' THEN 2
+                    ELSE 3
+                END", 'ASC');
+
+        $reservations = $qb->getQuery()->getResult();
+
+        $responseData = $this->serializer->serialize(
+            $reservations,
+            'json',
+            ['groups' => ['reservation:read']]
+        );
+
+        return new JsonResponse(
+            $responseData,
+            Response::HTTP_OK,
+            [],
+            true
+        );
+    }
 }

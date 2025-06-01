@@ -133,7 +133,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, ProfilConducteur>
      */
     #[ORM\OneToMany(targetEntity: ProfilConducteur::class, mappedBy: 'user')]
-    #[Groups(['profilConducteur:read', 'trajet:read'])]
+    #[Groups([
+        'profilConducteur:read',
+        'trajet:read',
+        'reservation:read'
+    ])]
     private Collection $profilConducteurs;
 
     /**
