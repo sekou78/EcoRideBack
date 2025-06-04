@@ -90,7 +90,7 @@ class Trajet
     private ?bool $estEcologique = null;
 
     #[ORM\Column]
-    #[Groups(['trajet:read'])]
+    #[Groups(['trajet:read', 'reservation:read'])]
     private ?int $nombrePlacesDisponible = null;
 
     #[Assert\Choice(
