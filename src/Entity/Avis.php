@@ -13,15 +13,15 @@ class Avis
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['avis:read'])]
+    #[Groups(['avis:read', 'reservation:read'])]
     private ?int $id = null;
 
     #[ORM\Column]
-    #[Groups(['avis:read'])]
+    #[Groups(['avis:read', 'reservation:read'])]
     private ?int $note = null;
 
-    #[ORM\Column(type: Types::TEXT)]
-    #[Groups(['avis:read'])]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['avis:read', 'reservation:read'])]
     private ?string $commentaire = null;
 
     #[ORM\ManyToOne(inversedBy: 'avis')]

@@ -15,7 +15,13 @@ class Reservation
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read', 'avis:read', 'trajet:read'])]
+    #[Groups(
+        [
+            'reservation:read',
+            'avis:read',
+            'trajet:read'
+        ]
+    )]
     private ?int $id = null;
 
     #[Assert\Choice(
@@ -32,13 +38,20 @@ class Reservation
 
     #[ORM\ManyToOne(inversedBy: 'reservations')]
     #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]
-    #[Groups(['reservation:read', 'trajet:read'])]
+    #[Groups(
+        [
+            'reservation:read',
+            'trajet:read',
+            'avis:read'
+        ]
+    )]
     private ?Trajet $trajet = null;
 
     /**
      * @var Collection<int, Avis>
      */
     #[ORM\OneToMany(targetEntity: Avis::class, mappedBy: 'reservation')]
+    #[Groups(['reservation:read'])]
     private Collection $avis;
 
     #[ORM\Column]

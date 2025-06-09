@@ -17,7 +17,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?int $id = null;
@@ -28,7 +29,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?string $plaqueImmatriculation = null;
@@ -39,7 +41,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?\DateTimeImmutable $dateImmatriculation = null;
@@ -50,7 +53,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?string $modele = null;
@@ -61,7 +65,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?string $marque = null;
@@ -72,7 +77,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?string $couleur = null;
@@ -83,7 +89,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?int $nombrePlaces = null;
@@ -94,7 +101,8 @@ class ProfilConducteur
             'profilConducteur:read',
             'trajet:read',
             'trajetChoisi:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?bool $electrique = null;

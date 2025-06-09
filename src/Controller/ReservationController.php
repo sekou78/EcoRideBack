@@ -151,10 +151,7 @@ final class ReservationController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function new(Request $request): JsonResponse
     {
-        $data = json_decode(
-            $request->getContent(),
-            true
-        );
+        $data = json_decode($request->getContent(), true);
 
         $reservation = $this->serializer->deserialize(
             $request->getContent(),
@@ -174,11 +171,11 @@ final class ReservationController extends AbstractController
             );
         }
 
-        // Récupérer le trajet
         if (isset($data['trajet'])) {
             $trajet = $this->manager
                 ->getRepository(Trajet::class)
                 ->find($data['trajet']);
+
             if (!$trajet) {
                 return new JsonResponse(
                     ['error' => 'Trajet non trouvé'],
@@ -186,23 +183,40 @@ final class ReservationController extends AbstractController
                 );
             }
 
-            // Vérifier si le nombre de places disponibles est suffisant
+            $user = $this->security->getUser();
+
+            // Vérifier que l'utilisateur a le bon rôle
+            $roles = $user->getRoles();
+            if (
+                !in_array('ROLE_PASSAGER', $roles) &&
+                !in_array('ROLE_PASSAGER_CHAUFFEUR', $roles)
+            ) {
+                return new JsonResponse(
+                    ['error' => 'Vous n\'êtes pas autorisé à effectuer une réservation.'],
+                    Response::HTTP_FORBIDDEN
+                );
+            }
+
+            // Empêcher le chauffeur de réserver son propre trajet
+            if ($trajet->getChauffeur() === $user) {
+                return new JsonResponse(
+                    ['error' => 'Vous ne pouvez pas réserver votre propre trajet.'],
+                    Response::HTTP_FORBIDDEN
+                );
+            }
+
+            // Vérification des places disponibles
             $placesDisponibles = $trajet->getNombrePlacesDisponible();
             $reservationsCount = count($trajet->getReservations());
 
             if ($reservationsCount >= $placesDisponibles) {
                 return new JsonResponse(
-                    [
-                        'error' => "Il n'y a plus de places disponibles pour ce trajet."
-                    ],
+                    ['error' => "Il n'y a plus de places disponibles pour ce trajet."],
                     Response::HTTP_BAD_REQUEST
                 );
             }
 
-            // Récupérer l'utilisateur authentifié
-            $user = $this->security->getUser();
-
-            // Vérifier les anciennes réservations de cet utilisateur pour ce trajet
+            // Vérification d'une ancienne réservation déjà existante
             $ancienneReservation = $this->manager
                 ->getRepository(Reservation::class)
                 ->findOneBy([
@@ -215,40 +229,29 @@ final class ReservationController extends AbstractController
                 $statutTrajet = $trajet->getStatut();
 
                 if (
-                    !in_array(
-                        $statutReservation,
-                        [
-                            'ANNULEE'
-                        ]
-                    )
-                    &&
+                    !in_array($statutReservation, ['ANNULEE']) &&
                     $statutTrajet !== 'TERMINEE'
                 ) {
                     return new JsonResponse(
-                        [
-                            'error' => "Vous avez déjà réservé un trajet."
-                        ],
+                        ['error' => "Vous avez déjà réservé ce trajet."],
                         Response::HTTP_BAD_REQUEST
                     );
                 }
             }
 
-            // Assigner l'utilisateur et le trajet à la nouvelle réservation
+            // Création de la réservation
             $reservation->setUser($user);
             $reservation->setTrajet($trajet);
             $reservation->setCreatedAt(new \DateTimeImmutable());
 
-            // Ajouter l'utilisateur aux passagers du trajet s'il n'y est pas encore
             if (!$trajet->getUsers()->contains($user)) {
                 $trajet->addUser($user);
             }
 
-            // Persister la réservation et le trajet
             $this->manager->persist($reservation);
             $this->manager->persist($trajet);
             $this->manager->flush();
 
-            // Préparer la réponse
             $responseData = $this->serializer->serialize(
                 $reservation,
                 'json',
@@ -651,23 +654,28 @@ final class ReservationController extends AbstractController
     {
         $user = $this->security->getUser();
 
-        // Requête avec tri personnalisé sur le statut
+        // On sélectionne toutes les réservations de l'utilisateur connecté
+        // mais uniquement celles sur lesquelles il N’A PAS encore laissé d’avis
         $qb = $this->repository->createQueryBuilder('r')
+            ->leftJoin('r.avis', 'a', 'WITH', 'a.user = :user')
             ->where('r.user = :user')
+            // Exclut les réservations avec un avis existant pour cet utilisateur
+            ->andWhere('a.id IS NULL')
             ->setParameter('user', $user)
             ->orderBy("CASE 
-                    WHEN r.statut = 'CONFIRMEE' THEN 1
-                    WHEN r.statut = 'EN_ATTENTE' THEN 2
-                    ELSE 3
-                END", 'ASC');
+                WHEN r.statut = 'CONFIRMEE' THEN 1
+                WHEN r.statut = 'EN_ATTENTE' THEN 2
+                ELSE 3
+            END", 'ASC');
 
         $reservations = $qb->getQuery()->getResult();
 
-        $responseData = $this->serializer->serialize(
-            $reservations,
-            'json',
-            ['groups' => ['reservation:read']]
-        );
+        $responseData = $this->serializer
+            ->serialize(
+                $reservations,
+                'json',
+                ['groups' => ['reservation:read']]
+            );
 
         return new JsonResponse(
             $responseData,

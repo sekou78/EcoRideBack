@@ -21,7 +21,8 @@ class Trajet
             'reservation:read',
             'historique:read',
             'trajet:read',
-            'user:read'
+            'user:read',
+            'avis:read'
         ]
     )]
     private ?int $id = null;
@@ -29,68 +30,83 @@ class Trajet
     #[ORM\Column(length: 255)]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?string $adresseDepart = null;
 
     #[ORM\Column(length: 255)]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?string $adresseArrivee = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?\DateTimeInterface $dateDepart = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?\DateTimeInterface $dateArrivee = null;
 
     #[ORM\Column(type: Types::TIME_MUTABLE)]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?\DateTimeInterface $heureDepart = null;
 
     #[ORM\Column(type: Types::TIME_MUTABLE)]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?\DateTimeInterface $dureeVoyage = null;
 
     #[ORM\Column]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?bool $peage = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?string $prix = null;
 
     #[ORM\Column]
     #[Groups([
         'trajet:read',
-        'reservation:read'
+        'reservation:read',
+        'avis:read'
     ])]
     private ?bool $estEcologique = null;
 
     #[ORM\Column]
-    #[Groups(['trajet:read', 'reservation:read'])]
+    #[Groups(
+        [
+            'trajet:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?int $nombrePlacesDisponible = null;
 
     #[Assert\Choice(
@@ -107,7 +123,8 @@ class Trajet
             'reservation:read',
             'historique:read',
             'trajet:read',
-            'reservation:read'
+            'reservation:read',
+            'avis:read'
         ]
     )]
     private ?string $statut = null;
@@ -184,12 +201,25 @@ class Trajet
     // Si tu veux ajouter un chauffeur spécifique
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['trajet:read', 'reservation:read'])]
+    #[Groups(
+        [
+            'trajet:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?User $chauffeur = null;
 
     #[ORM\OneToOne(cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['trajet:read', 'trajetChoisi:read', 'reservation:read'])]
+    #[Groups(
+        [
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?ProfilConducteur $vehicule = null;
 
     public function getChauffeur(): ?User
