@@ -442,6 +442,7 @@ final class AvisController extends AbstractController
                     'id' => $reservation->getId(),
                     'statut' => $reservation->getStatut(),
                     'date' => $reservation->getCreatedAt()->format('d-m-Y'),
+                    'chauffeur' => $reservation->getTrajet()->getChauffeur()->getPseudo()
                 ],
             ];
         }, $avisVisible);

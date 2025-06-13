@@ -180,19 +180,43 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $reservations;
 
     #[ORM\OneToOne(cascade: ['persist', 'remove'])]
-    #[Groups(['user:read', 'trajet:read', 'reservation:read'])]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
     private ?Image $image = null;
 
     #[ORM\Column(nullable: true)]
-    #[Groups(['user:read', 'trajet:read', 'reservation:read'])]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
     private ?bool $accepteFumeur = null;
 
     #[ORM\Column(nullable: true)]
-    #[Groups(['user:read', 'trajet:read', 'reservation:read'])]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
     private ?bool $accepteAnimaux = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['user:read', 'trajet:read', 'reservation:read'])]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
     private ?string $autresPreferences = null;
 
     /** @throws \Exception */
