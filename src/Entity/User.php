@@ -37,7 +37,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank(message: 'Veuillez renseigner un email.')]
     #[Assert\Email(message: 'Veuillez renseigner un email valide.')]
     #[ORM\Column(length: 180)]
-    #[Groups(['user:read'])]
+    #[Groups(
+        [
+            'trajet:read',
+            'reservation:read',
+            'historique:read',
+            'profilConducteur:read',
+            'employes:read',
+            'admin:read',
+            'avis:read',
+            'image:read',
+            'user:read',
+        ]
+    )]
     private ?string $email = null;
 
     /**

@@ -42,6 +42,10 @@ class Avis
     #[Groups(['avis:read'])]
     private ?bool $isVisible = null;
 
+    #[ORM\Column]
+    #[Groups(['avis:read'])]
+    private ?bool $isRefused = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -127,6 +131,18 @@ class Avis
     public function setIsVisible(bool $isVisible): static
     {
         $this->isVisible = $isVisible;
+
+        return $this;
+    }
+
+    public function isRefused(): ?bool
+    {
+        return $this->isRefused;
+    }
+
+    public function setIsRefused(?bool $isRefused): static
+    {
+        $this->isRefused = $isRefused;
 
         return $this;
     }

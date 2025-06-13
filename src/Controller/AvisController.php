@@ -222,6 +222,7 @@ final class AvisController extends AbstractController
                 'json'
             );
         $avis->setIsVisible(false);
+        $avis->setIsRefused(false);
         $avis->setUser($user);
         $avis->setReservation($reservation);
         $avis->setCreatedAt(new \DateTimeImmutable());
@@ -557,15 +558,158 @@ final class AvisController extends AbstractController
             );
         }
 
-        // Valider l'avis du visiteur
+        // Si l'avis a déjà été refusé, on empêche sa validation
+        if ($avis->isRefused()) {
+            return new JsonResponse(
+                [
+                    'error' => 'Impossible de valider un avis déjà refusé'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Valider l'avis
         $avis->setIsVisible(true);
+        $avis->setIsRefused(false);
 
-        $avis->setUpdatedAt(new DateTimeImmutable());
-
+        $avis->setUpdatedAt(new \DateTimeImmutable());
         $manager->flush();
 
         return new JsonResponse(
-            ['message' => 'Avis validé avec succès'],
+            [
+                'message' => 'Avis validé avec succès'
+            ],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route(
+        '/employee/refuse-avis/{id}',
+        name: 'employee_refuse_avis',
+        methods: 'PUT'
+    )]
+    #[OA\Put(
+        path: "/api/avis/employee/refuse-avis/{id}",
+        summary: "Refuser un avis client",
+        description: "Refus de l'avis client par un employé.",
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "ID de l'avis à refuser",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 3
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Avis refusé avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "id",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Avis refusé avec succès"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Accès réfusé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Avis non trouvé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Avis non trouvé"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
+    #[IsGranted('ROLE_EMPLOYE')]
+    public function refuseAvis(
+        int $id,
+        EntityManagerInterface $manager
+    ): JsonResponse {
+        $avis = $manager
+            ->getRepository(Avis::class)
+            ->findOneBy(['id' => $id]);
+
+        // Vérification si l'utilisateur a le rôle requis
+        if (
+            !$this->isGranted('ROLE_EMPLOYE')
+        ) {
+            return new JsonResponse(
+                ['message' => 'Accès réfusé'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        if (!$avis) {
+            return new JsonResponse(
+                ['error' => 'Avis non trouvé'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Si l'avis a déjà été validé, on empêche son refus
+        if ($avis->isVisible()) {
+            return new JsonResponse(
+                [
+                    'error' => 'Impossible de refuser un avis déjà validé'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Refuser l'avis
+        $avis->setIsRefused(true);
+        $avis->setIsVisible(false);
+
+        $avis->setUpdatedAt(new \DateTimeImmutable());
+        $manager->flush();
+
+        return new JsonResponse(
+            [
+                'message' => 'Avis refusé avec succès'
+            ],
             Response::HTTP_OK
         );
     }
