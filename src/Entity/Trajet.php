@@ -113,6 +113,7 @@ class Trajet
         choices: [
             'EN_ATTENTE',
             'EN_COURS',
+            'FINI',
             'TERMINEE',
         ],
         message: 'Le statut doit être "EN_ATTENTE", "EN_COURS" ou "TERMINEE".'
@@ -210,7 +211,7 @@ class Trajet
     )]
     private ?User $chauffeur = null;
 
-    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[ORM\ManyToOne(targetEntity: ProfilConducteur::class, inversedBy: 'trajets')]
     #[ORM\JoinColumn(nullable: false)]
     #[Groups(
         [
@@ -486,7 +487,7 @@ class Trajet
         return $this->vehicule;
     }
 
-    public function setVehicule(ProfilConducteur $vehicule): static
+    public function setVehicule(?ProfilConducteur $vehicule): static
     {
         $this->vehicule = $vehicule;
 

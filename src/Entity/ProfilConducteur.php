@@ -5,6 +5,8 @@ namespace App\Entity;
 use App\Repository\ProfilConducteurRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
 #[ORM\Entity(repositoryClass: ProfilConducteurRepository::class)]
 class ProfilConducteur
@@ -115,6 +117,14 @@ class ProfilConducteur
 
     #[ORM\ManyToOne(inversedBy: 'profilConducteurs')]
     private ?User $user = null;
+
+    #[ORM\OneToMany(mappedBy: 'vehicule', targetEntity: Trajet::class)]
+    private Collection $trajets;
+
+    public function __construct()
+    {
+        $this->trajets = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -237,6 +247,36 @@ class ProfilConducteur
     public function setUser(?User $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Trajet>
+     */
+    public function getTrajets(): Collection
+    {
+        return $this->trajets;
+    }
+
+    public function addTrajet(Trajet $trajet): self
+    {
+        if (!$this->trajets->contains($trajet)) {
+            $this->trajets[] = $trajet;
+            $trajet->setVehicule($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTrajet(Trajet $trajet): self
+    {
+        if ($this->trajets->removeElement($trajet)) {
+            // set the owning side to null (unless already changed)
+            if ($trajet->getVehicule() === $this) {
+                $trajet->setVehicule(null);
+            }
+        }
 
         return $this;
     }

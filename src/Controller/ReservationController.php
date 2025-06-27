@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\User;
 use App\Entity\Reservation;
 use App\Entity\Trajet;
 use App\Repository\ReservationRepository;
@@ -183,7 +184,14 @@ final class ReservationController extends AbstractController
                 );
             }
 
+            // Récupérer l'utilisateur authentifié
             $user = $this->security->getUser();
+            if (!$user instanceof User) {
+                return new JsonResponse(
+                    ['error' => 'Utilisateur non connu'],
+                    Response::HTTP_UNAUTHORIZED
+                );
+            }
 
             // Vérifier que l'utilisateur a le bon rôle
             $roles = $user->getRoles();
@@ -247,6 +255,20 @@ final class ReservationController extends AbstractController
             if (!$trajet->getUsers()->contains($user)) {
                 $trajet->addUser($user);
             }
+
+            $prixTrajet = (int) round(floatval($trajet->getPrix()));
+            $creditsUtilisateur = $user->getCredits();
+
+            if ($creditsUtilisateur < $prixTrajet) {
+                return new JsonResponse(
+                    ['error' => "Vous n'avez pas assez de crédits pour réserver ce trajet."],
+                    Response::HTTP_PAYMENT_REQUIRED
+                );
+            }
+
+            // Déduction des crédits du passager
+            $user->setCredits($creditsUtilisateur - $prixTrajet);
+
 
             $this->manager->persist($reservation);
             $this->manager->persist($trajet);
@@ -625,7 +647,14 @@ final class ReservationController extends AbstractController
             );
         }
 
+        // Récupérer l'utilisateur authentifié
         $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
 
         // Vérifier si l'utilisateur authentifié est celui qui a créé la réservation
         if ($reservation->getUser() !== $user) {
@@ -637,7 +666,21 @@ final class ReservationController extends AbstractController
             );
         }
 
-        $this->manager->remove($reservation);
+        $trajet = $reservation->getTrajet();
+
+        if ($trajet === null) {
+            return new JsonResponse(['error' => 'Trajet associé introuvable'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        // Récupérer le prix du trajet (string) et convertir en float ou int selon ta logique de crédits
+        $creditsARembourser = (int) round(floatval($trajet->getPrix()));
+
+        // Ajouter les crédits à l'utilisateur
+        $user->setCredits($user->getCredits() + $creditsARembourser);
+
+        // Si suppression de la reservation, on change le statut de la reservation en annulée
+        $reservation->setStatut("ANNULEE");
+
         $this->manager->flush();
 
         return new JsonResponse(

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\ProfilConducteur;
+use App\Entity\Reservation;
 use App\Entity\Trajet;
 use App\Entity\User;
 use App\Repository\TrajetRepository;
@@ -412,6 +413,21 @@ final class TrajetController extends AbstractController
             );
         }
 
+        // Vérifier que le véhicule n’est pas déjà affecté à un trajet non terminé
+        $trajetEnCours = $this->manager
+            ->getRepository(Trajet::class)
+            ->findTrajetNonFiniParVehicule($profilConducteur);
+
+        if ($trajetEnCours) {
+            return new JsonResponse(
+                ['error' => 'Ce véhicule est déjà affecté à un trajet en cours.'],
+                Response::HTTP_CONFLICT
+            );
+        }
+
+        // Affecter le statut "en attente" au trajet
+        $trajet->setStatut('EN_ATTENTE');
+
         // Affectation du véhicule au trajet
         $trajet->setVehicule($profilConducteur);
 
@@ -812,23 +828,23 @@ final class TrajetController extends AbstractController
         }
 
         // Si des nouvelles données sont envoyées, on les utilise pour mettre à jour le trajet
-        if ($data['adresseDepart']) {
+        if (isset($data['adresseDepart'])) {
             $trajet->setAdresseDepart($data['adresseDepart']);
         }
 
-        if ($data['adresseArrivee']) {
+        if (isset($data['adresseArrivee'])) {
             $trajet->setAdresseArrivee($data['adresseArrivee']);
         }
 
-        if ($data['dateDepart']) {
+        if (isset($data['dateDepart'])) {
             $trajet->setDateDepart(new \DateTimeImmutable($data['dateDepart']));
         }
 
-        if ($data['dateArrivee']) {
+        if (isset($data['dateArrivee'])) {
             $trajet->setDateArrivee(new \DateTimeImmutable($data['dateArrivee']));
         }
 
-        if ($data['prix']) {
+        if (isset($data['prix'])) {
             $trajet->setPrix($data['prix']);
         }
 
@@ -836,7 +852,7 @@ final class TrajetController extends AbstractController
             $trajet->setEstEcologique((bool) $data['estEcologique']);
         }
 
-        if ($data['nombrePlacesDisponible']) {
+        if (isset($data['nombrePlacesDisponible'])) {
             $trajet->setNombrePlacesDisponible($data['nombrePlacesDisponible']);
         }
 
@@ -1032,7 +1048,26 @@ final class TrajetController extends AbstractController
             );
         }
 
-        $this->manager->remove($trajet);
+        // Récupérer le prix du trajet une seule fois
+        $montantARembourser = (int) round(floatval($trajet->getPrix()));
+
+        foreach ($trajet->getReservations() as $reservation) {
+            if (!$reservation->isRembourse()) {
+                $passager = $reservation->getUser();
+
+                // Rembourser les crédits au passager
+                $passager->setCredits($passager->getCredits() + $montantARembourser);
+
+                // Marquer la réservation comme remboursée
+                $reservation->setIsRembourse(true);
+
+                // Supprimer la réservation
+                $this->manager->remove($reservation);
+            }
+        }
+
+        // Le statut du trajet devient "TERMINEE"
+        $trajet->setStatut('TERMINEE');
 
         $this->manager->flush();
 
@@ -1057,7 +1092,10 @@ final class TrajetController extends AbstractController
         // Création de la requête pour récupérer tous les Trajets
         $queryBuilder = $this->manager
             ->getRepository(Trajet::class)
-            ->createQueryBuilder('a');
+            ->createQueryBuilder('a')
+            ->innerJoin('a.chauffeur', 'c')
+            ->leftJoin('c.avis', 'r')
+            ->addSelect('c', 'r');
 
         // Filtre sur l’adresse de départ
         if ($adresseDepartFilter) {
@@ -1102,9 +1140,10 @@ final class TrajetController extends AbstractController
         // Tri personnalisé : EN_COURS puis EN_ATTENTE puis les autres
         $queryBuilder->addSelect("
             CASE 
-              WHEN a.statut = 'EN_COURS' THEN 1
-              WHEN a.statut = 'EN_ATTENTE' THEN 2
-              ELSE 3
+                WHEN a.statut = 'EN_COURS' THEN 1
+                WHEN a.statut = 'EN_ATTENTE' THEN 2
+                WHEN a.statut = 'TERMINEE' THEN 3
+                ELSE 4
             END AS HIDDEN statutOrdre
         ");
 
@@ -1120,6 +1159,42 @@ final class TrajetController extends AbstractController
 
         // Formatage des résultats pour l’API (JSON)
         $items = array_map(function ($trajet) {
+            // $avis = array_map(
+            //     function ($avis) {
+            //         return [
+            //             'id' => $avis->getId(),
+            //             'note' => $avis->getNote(),
+            //             'commentaire' => $avis->getCommentaire(),
+            //         ];
+            //     },
+            //     $trajet->getChauffeur()->getAvis()->toArray(),
+            // );
+            $chauffeur = $trajet->getChauffeur();
+            $avisChauffeur = [];
+            $totalNotes = 0;
+            $nombreAvis = 0;
+
+            // Parcours des trajets du chauffeur
+            foreach ($chauffeur->getTrajet() as $trajetChauffeur) {
+                foreach ($trajetChauffeur->getReservations() as $reservation) {
+                    foreach ($reservation->getAvis() as $avis) {
+                        if ($avis->isVisible() && !$avis->isRefused()) {
+                            $note = $avis->getNote();
+                            $avisChauffeur[] = [
+                                'id' => $avis->getId(),
+                                'note' => $note,
+                                'commentaire' => $avis->getCommentaire(),
+                            ];
+                            $totalNotes += $note;
+                            $nombreAvis++;
+                        }
+                    }
+                }
+            }
+
+            // Calcul de la note moyenne
+            $moyenneNoteChauffeur = $nombreAvis > 0 ? round($totalNotes / $nombreAvis, 2) : null;
+
             return [
                 'id' => $trajet->getId(),
                 'adresseDepart' => $trajet->getAdresseDepart(),
@@ -1132,12 +1207,13 @@ final class TrajetController extends AbstractController
                 'dureeVoyage' => $trajet->getDureeVoyage()?->format("H:i"),
                 'peage' => $trajet->isPeage() ? 'oui' : 'non',
                 'estEcologique' => $trajet->isEstEcologique() ? 'oui' : 'non',
-                'chauffeur' => $trajet->getChauffeur()->getPseudo(),
-                'image' => $trajet->getChauffeur()->getImage()
-                    ? $this->generateUrl('app_api_image_show', ['id' => $trajet->getChauffeur()->getImage()->getId()])
+                'chauffeur' => $chauffeur->getPseudo(),
+                'avisChauffeur' => $avisChauffeur,
+                'moyenneNoteChauffeur' => $moyenneNoteChauffeur,
+                'image' => $chauffeur->getImage()
+                    ? $this->generateUrl('app_api_image_show', ['id' => $chauffeur->getImage()->getId()])
                     : null,
                 'statut' => $trajet->getStatut(),
-                // 'noteChauffeur' => $trajet->getUser()->getNote("isVisible", true),
                 'createdAt' => $trajet->getCreatedAt()?->format("d-m-Y"),
             ];
         }, (array) $pagination->getItems());
@@ -1159,4 +1235,193 @@ final class TrajetController extends AbstractController
             JsonResponse::HTTP_OK
         );
     }
+
+    #[Route('/', name: 'index', methods: 'GET')]
+    public function index(): JsonResponse
+    {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        if (!$user) {
+            return new JsonResponse(
+                ['message' => 'Utilisateur non connecté.'],
+                JsonResponse::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $trajetRepo = $this->manager->getRepository(Trajet::class);
+        $reservationRepo = $this->manager->getRepository(Reservation::class);
+
+        // Trajets où l'utilisateur est chauffeur
+        $trajetsChauffeur = $trajetRepo->createQueryBuilder('t')
+            ->where('t.chauffeur = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+
+        // Trajets où l'utilisateur est passager
+        $reservations = $reservationRepo->createQueryBuilder('r')
+            ->leftJoin('r.trajet', 't')
+            ->where('r.user = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+
+        $trajetsPassager = array_map(function (Reservation $res) {
+            return $res->getTrajet();
+        }, $reservations);
+
+        // Fusionner les deux listes et supprimer les doublons
+        $allTrajets = array_unique(array_merge($trajetsChauffeur, $trajetsPassager), SORT_REGULAR);
+
+        // Filtrer uniquement les trajets en cours
+        $allTrajets = array_filter($allTrajets, function (Trajet $t) {
+            return $t->getStatut() === 'EN_COURS';
+        });
+
+        // Trier par date décroissante
+        usort($allTrajets, function ($a, $b) {
+            return $b->getDateDepart() <=> $a->getDateDepart();
+        });
+
+        // Mapper les trajets au format JSON
+        $items = array_map(function (Trajet $trajet) use ($user) {
+            return [
+                'id' => $trajet->getId(),
+                'adresseDepart' => $trajet->getAdresseDepart(),
+                'adresseArrivee' => $trajet->getAdresseArrivee(),
+                'prix' => $trajet->getPrix(),
+                'dateDepart' => $trajet->getDateDepart()?->format("d-m-Y"),
+                'statut' => $trajet->getStatut(),
+                'estChauffeur' => $trajet->getChauffeur() === $user,
+            ];
+        }, $allTrajets);
+
+        return new JsonResponse(
+            ['items' => $items],
+            JsonResponse::HTTP_OK
+        );
+    }
+
+    // #[Route('/api/historique', name: 'historique', methods: 'GET')]
+    // public function historique(): JsonResponse
+    // {
+    //     $user = $this->getUser();
+
+    //     if (!$user) {
+    //         return new JsonResponse(
+    //             ['message' => 'Utilisateur non connecté.'],
+    //             JsonResponse::HTTP_UNAUTHORIZED
+    //         );
+    //     }
+
+    //     $trajetRepo = $this->manager->getRepository(Trajet::class);
+    //     $reservationRepo = $this->manager->getRepository(Reservation::class);
+
+    //     // Trajets où l'utilisateur est chauffeur
+    //     $trajetsChauffeur = $trajetRepo->createQueryBuilder('t')
+    //         ->where('t.chauffeur = :user')
+    //         ->setParameter('user', $user)
+    //         ->getQuery()
+    //         ->getResult();
+
+    //     // Trajets où l'utilisateur est passager
+    //     $reservations = $reservationRepo->createQueryBuilder('r')
+    //         ->leftJoin('r.trajet', 't')
+    //         ->where('r.user = :user')
+    //         ->setParameter('user', $user)
+    //         ->getQuery()
+    //         ->getResult();
+
+    //     $trajetsPassager = array_map(function (Reservation $res) {
+    //         return $res->getTrajet();
+    //     }, $reservations);
+
+    //     // Fusionner les deux listes et supprimer les doublons
+    //     $allTrajets = array_unique(array_merge($trajetsChauffeur, $trajetsPassager), SORT_REGULAR);
+
+    //     // Optionnel : trier les trajets par date (desc)
+    //     usort($allTrajets, function ($a, $b) {
+    //         return $b->getDateDepart() <=> $a->getDateDepart();
+    //     });
+
+    //     // Mapper les trajets au format JSON
+    //     $items = array_map(function (Trajet $trajet) use ($user) {
+    //         return [
+    //             'id' => $trajet->getId(),
+    //             'adresseDepart' => $trajet->getAdresseDepart(),
+    //             'adresseArrivee' => $trajet->getAdresseArrivee(),
+    //             'prix' => $trajet->getPrix(),
+    //             'dateDepart' => $trajet->getDateDepart()?->format("d-m-Y"),
+    //             'statut' => $trajet->getStatut(),
+    //             'estChauffeur' => $trajet->getChauffeur() === $user,
+    //         ];
+    //     }, $allTrajets);
+
+    //     return new JsonResponse(
+    //         ['items' => $items],
+    //         JsonResponse::HTTP_OK
+    //     );
+    // }
+
+    //  #[Route('/', name: 'index', methods: 'GET')]
+    // public function index(): JsonResponse
+    // {
+    //     $user = $this->getUser();
+
+    //     if (!$user) {
+    //         return new JsonResponse(['message' => 'Utilisateur non connecté.'], JsonResponse::HTTP_UNAUTHORIZED);
+    //     }
+
+    //     $trajetRepo = $this->manager->getRepository(Trajet::class);
+    //     $reservationRepo = $this->manager->getRepository(Reservation::class);
+
+    //     // Trajets où l'utilisateur est chauffeur
+    //     $trajetsChauffeur = $trajetRepo->createQueryBuilder('t')
+    //         ->where('t.chauffeur = :user')
+    //         ->setParameter('user', $user)
+    //         ->getQuery()
+    //         ->getResult();
+
+    //     // Trajets où l'utilisateur est passager
+    //     $reservations = $reservationRepo->createQueryBuilder('r')
+    //         ->leftJoin('r.trajet', 't')
+    //         ->where('r.user = :user')
+    //         ->setParameter('user', $user)
+    //         ->getQuery()
+    //         ->getResult();
+
+    //     $trajetsPassager = array_map(function (Reservation $res) {
+    //         return $res->getTrajet();
+    //     }, $reservations);
+
+    //     // Fusionner les deux listes et supprimer les doublons
+    //     $allTrajets = array_unique(array_merge($trajetsChauffeur, $trajetsPassager), SORT_REGULAR);
+
+    //     // Optionnel : trier les trajets par date (desc)
+    //     usort($allTrajets, function ($a, $b) {
+    //         return $b->getDateDepart() <=> $a->getDateDepart();
+    //     });
+
+    //     // Mapper les trajets au format JSON
+    //     $items = array_map(function (Trajet $trajet) use ($user) {
+    //         return [
+    //             'id' => $trajet->getId(),
+    //             'adresseDepart' => $trajet->getAdresseDepart(),
+    //             'adresseArrivee' => $trajet->getAdresseArrivee(),
+    //             'prix' => $trajet->getPrix(),
+    //             'dateDepart' => $trajet->getDateDepart()?->format("d-m-Y"),
+    //             'statut' => $trajet->getStatut(),
+    //             'estChauffeur' => $trajet->getChauffeur() === $user,
+    //         ];
+    //     }, $allTrajets);
+
+    //     return new JsonResponse(['items' => $items], JsonResponse::HTTP_OK);
+    // }
 }

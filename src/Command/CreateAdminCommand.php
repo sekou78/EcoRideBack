@@ -30,6 +30,21 @@ class CreateAdminCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
+        // Récupérer tous les utilisateurs et filtrer ceux qui ont ROLE_ADMIN
+        $admins = $this->manager
+            ->getRepository(User::class)->findAll();
+        $existingAdmin = array_filter(
+            $admins,
+            function (User $u) {
+                return in_array("ROLE_ADMIN", $u->getRoles());
+            }
+        );
+
+        if (count($existingAdmin) > 0) {
+            $io->error("Un administrateur existe déjà.");
+            return Command::FAILURE;
+        }
+
         $email = $io->ask("Email de l'admin");
         $password = $io->askHidden("Mot de passe de l'admin");
 

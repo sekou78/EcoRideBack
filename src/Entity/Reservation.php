@@ -65,6 +65,10 @@ class Reservation
     #[Groups(['reservation:read'])]
     private ?User $user = null;
 
+    #[ORM\Column(type: 'boolean')]
+    #[Groups(['reservation:read'])]
+    private bool $isRembourse = false;
+
     public function __construct()
     {
         $this->avis = new ArrayCollection();
@@ -117,12 +121,12 @@ class Reservation
         return $this;
     }
 
-    public function removeAvi(Avis $avi): static
+    public function removeAvi(Avis $avis): static
     {
-        if ($this->avis->removeElement($avi)) {
+        if ($this->avis->removeElement($avis)) {
             // set the owning side to null (unless already changed)
-            if ($avi->getReservation() === $this) {
-                $avi->setReservation(null);
+            if ($avis->getReservation() === $this) {
+                $avis->setReservation(null);
             }
         }
 
@@ -162,6 +166,17 @@ class Reservation
     {
         $this->user = $user;
 
+        return $this;
+    }
+
+    public function isRembourse(): bool
+    {
+        return $this->isRembourse;
+    }
+
+    public function setIsRembourse(bool $isRembourse): self
+    {
+        $this->isRembourse = $isRembourse;
         return $this;
     }
 }
