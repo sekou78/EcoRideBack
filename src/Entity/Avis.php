@@ -46,6 +46,10 @@ class Avis
     #[Groups(['avis:read'])]
     private ?bool $isRefused = null;
 
+    #[ORM\Column(type: 'boolean')]
+    #[Groups(['avis:read', 'reservation:read'])]
+    private bool $credited = false;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -144,6 +148,17 @@ class Avis
     {
         $this->isRefused = $isRefused;
 
+        return $this;
+    }
+
+    public function getCredited(): bool
+    {
+        return $this->credited;
+    }
+
+    public function setCredited(bool $credited): self
+    {
+        $this->credited = $credited;
         return $this;
     }
 }

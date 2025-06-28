@@ -51,7 +51,11 @@ class Reservation
      * @var Collection<int, Avis>
      */
     #[ORM\OneToMany(targetEntity: Avis::class, mappedBy: 'reservation')]
-    #[Groups(['reservation:read'])]
+    #[Groups([
+        'reservation:read',
+        'trajet:read',
+        'trajetChoisi:read',
+    ])]
     private Collection $avis;
 
     #[ORM\Column]

@@ -573,7 +573,28 @@ final class AvisController extends AbstractController
         $avis->setIsVisible(true);
         $avis->setIsRefused(false);
 
+        // Créditer le chauffeur si ce n'est pas déjà fait
+        if (!$avis->getCredited()) {
+            $reservation = $avis->getReservation();
+            if ($reservation) {
+                $trajet = $reservation->getTrajet();
+                if ($trajet) {
+                    $chauffeur = $trajet->getChauffeur();
+                    $prixTrajet = (float) $trajet->getPrix();
+                    $passagers = $trajet->getUsers()
+                        ->filter(function ($user) use ($chauffeur) {
+                            return $user !== $chauffeur;
+                        });
+                    $nbPassagers = $passagers->count();
+                    $credit = $prixTrajet * $nbPassagers;
+                    $chauffeur->addCredits($credit);
+                    $avis->setCredited(true);
+                }
+            }
+        }
+
         $avis->setUpdatedAt(new \DateTimeImmutable());
+
         $manager->flush();
 
         return new JsonResponse(
@@ -703,6 +724,26 @@ final class AvisController extends AbstractController
         // Refuser l'avis
         $avis->setIsRefused(true);
         $avis->setIsVisible(false);
+
+        // Créditer le chauffeur si ce n'est pas déjà fait
+        if (!$avis->getCredited()) {
+            $reservation = $avis->getReservation();
+            if ($reservation) {
+                $trajet = $reservation->getTrajet();
+                if ($trajet) {
+                    $chauffeur = $trajet->getChauffeur();
+                    $prixTrajet = (float) $trajet->getPrix();
+                    $passagers = $trajet->getUsers()
+                        ->filter(function ($user) use ($chauffeur) {
+                            return $user !== $chauffeur;
+                        });
+                    $nbPassagers = $passagers->count();
+                    $credit = $prixTrajet * $nbPassagers;
+                    $chauffeur->addCredits($credit);
+                    $avis->setCredited(true);
+                }
+            }
+        }
 
         $avis->setUpdatedAt(new \DateTimeImmutable());
         $manager->flush();

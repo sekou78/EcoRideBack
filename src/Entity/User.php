@@ -512,22 +512,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->avis;
     }
 
-    public function addAvi(Avis $avi): static
+    public function addAvi(Avis $avis): static
     {
-        if (!$this->avis->contains($avi)) {
-            $this->avis->add($avi);
-            $avi->setUser($this);
+        if (!$this->avis->contains($avis)) {
+            $this->avis->add($avis);
+            $avis->setUser($this);
         }
 
         return $this;
     }
 
-    public function removeAvi(Avis $avi): static
+    public function removeAvi(Avis $avis): static
     {
-        if ($this->avis->removeElement($avi)) {
+        if ($this->avis->removeElement($avis)) {
             // set the owning side to null (unless already changed)
-            if ($avi->getUser() === $this) {
-                $avi->setUser(null);
+            if ($avis->getUser() === $this) {
+                $avis->setUser(null);
             }
         }
 
