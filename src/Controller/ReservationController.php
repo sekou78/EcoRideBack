@@ -208,7 +208,7 @@ final class ReservationController extends AbstractController
             // Empêcher le chauffeur de réserver son propre trajet
             if ($trajet->getChauffeur() === $user) {
                 return new JsonResponse(
-                    ['error' => 'Vous ne pouvez pas réserver votre propre trajet.'],
+                    ['error' => "Vous ne pouvez pas réserver votre propre trajet."],
                     Response::HTTP_FORBIDDEN
                 );
             }

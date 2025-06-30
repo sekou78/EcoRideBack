@@ -1273,9 +1273,18 @@ final class TrajetController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        $trajetsPassager = array_map(function (Reservation $res) {
-            return $res->getTrajet();
+        // Trajets où l'utilisateur est passager (toutes réservations, peu importe le rôle)
+        $trajetsPassager = array_map(function (Reservation $res) use ($user) {
+            $trajet = $res->getTrajet();
+            // Ne garder que les trajets où l'utilisateur est passager (pas chauffeur)
+            if ($trajet->getChauffeur() !== $user) {
+                return $trajet;
+            }
+            return null;
         }, $reservations);
+
+        // Retirer les nulls éventuels
+        $trajetsPassager = array_filter($trajetsPassager);
 
         // Fusionner les deux listes et supprimer les doublons
         $allTrajets = array_unique(array_merge($trajetsChauffeur, $trajetsPassager), SORT_REGULAR);

@@ -201,14 +201,15 @@ final class AvisController extends AbstractController
             ->getRepository(Avis::class)
             ->findOneBy(
                 [
-                    'reservation' => $reservation
+                    'reservation' => $reservation,
+                    'user' => $user
                 ]
             );
 
         if ($existingAvis) {
             return new JsonResponse(
                 [
-                    'error' => 'Vous avez déjà soumis un avis pour ce trajet.'
+                    'error' => 'Vous avez déjà soumis un avis pour cette réservation.'
                 ],
                 Response::HTTP_CONFLICT
             );
@@ -581,12 +582,8 @@ final class AvisController extends AbstractController
                 if ($trajet) {
                     $chauffeur = $trajet->getChauffeur();
                     $prixTrajet = (float) $trajet->getPrix();
-                    $passagers = $trajet->getUsers()
-                        ->filter(function ($user) use ($chauffeur) {
-                            return $user !== $chauffeur;
-                        });
-                    $nbPassagers = $passagers->count();
-                    $credit = $prixTrajet * $nbPassagers;
+                    // Nouvelle logique : créditer seulement le prix du trajet par avis
+                    $credit = $prixTrajet;
                     $chauffeur->addCredits($credit);
                     $avis->setCredited(true);
                 }
@@ -733,12 +730,8 @@ final class AvisController extends AbstractController
                 if ($trajet) {
                     $chauffeur = $trajet->getChauffeur();
                     $prixTrajet = (float) $trajet->getPrix();
-                    $passagers = $trajet->getUsers()
-                        ->filter(function ($user) use ($chauffeur) {
-                            return $user !== $chauffeur;
-                        });
-                    $nbPassagers = $passagers->count();
-                    $credit = $prixTrajet * $nbPassagers;
+                    // Nouvelle logique : créditer seulement le prix du trajet par avis
+                    $credit = $prixTrajet;
                     $chauffeur->addCredits($credit);
                     $avis->setCredited(true);
                 }
