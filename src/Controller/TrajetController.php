@@ -1317,4 +1317,52 @@ final class TrajetController extends AbstractController
             JsonResponse::HTTP_OK
         );
     }
+
+    #[Route('/passagers/{id}', name: 'passagers', methods: ['GET'])]
+    public function passagers(
+        TrajetRepository $trajetRepository,
+        Security $security,
+        int $id
+    ): JsonResponse {
+        $user = $security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(['error' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $trajet = $trajetRepository->find($id);
+
+        if (!$trajet) {
+            return new JsonResponse(['error' => 'Trajet non trouvé'], 404);
+        }
+
+        // Vérifie que l'utilisateur est le chauffeur de ce trajet
+        $chauffeur = $trajet->getChauffeur();
+        $userId = $user->getId();
+
+        $roles = $user->getRoles();
+        $isChauffeur = $chauffeur && $chauffeur->getId() === $userId;
+        $hasRightRole = in_array('ROLE_CHAUFFEUR', $roles) || in_array('ROLE_PASSAGER_CHAUFFEUR', $roles);
+
+        if (!($isChauffeur && $hasRightRole)) {
+            return new JsonResponse(['error' => 'Accès interdit'], 403);
+        }
+
+        //récupérer les passagers via les réservations
+        $passagers = [];
+        foreach ($trajet->getReservations() as $reservation) {
+            $passager = $reservation->getUser();
+            // On exclut le chauffeur du trajet
+            if ($passager && $passager->getId() !== $chauffeur->getId()) {
+                $passagers[] = [
+                    'id' => $passager->getId(),
+                    'prenom' => $passager->getPrenom(),
+                    'telephone' => $passager->getTelephone(),
+                    // autres champs si besoin
+                ];
+            }
+        }
+
+        return new JsonResponse($passagers);
+    }
 }

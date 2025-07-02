@@ -120,7 +120,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $prenom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
-    #[Groups(['user:read'])]
+    #[Groups([
+        'trajet:read',
+        'reservation:read',
+        'historique:read',
+        'profilConducteur:read',
+        'employes:read',
+        'admin:read',
+        'avis:read',
+        'image:read',
+        'user:read',
+    ])]
     private ?string $telephone = null;
 
     #[ORM\Column(length: 100, nullable: true)]
