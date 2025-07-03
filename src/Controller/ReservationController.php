@@ -639,8 +639,13 @@ final class ReservationController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function delete(int $id): JsonResponse
     {
-        $reservation = $this->repository->findOneBy(['id' => $id]);
+        // Récupérer la réservation via son ID
+        $reservation = $this->repository
+            ->findOneBy(
+                ['id' => $id]
+            );
 
+        // Si pas trouvée, erreur 404
         if (!$reservation) {
             return new JsonResponse(
                 ['error' => 'Réservation non trouvée'],
@@ -650,6 +655,8 @@ final class ReservationController extends AbstractController
 
         // Récupérer l'utilisateur authentifié
         $user = $this->security->getUser();
+
+        // Vérifier qu'il est bien connecté
         if (!$user instanceof User) {
             return new JsonResponse(
                 ['error' => 'Utilisateur non connu'],
@@ -657,7 +664,7 @@ final class ReservationController extends AbstractController
             );
         }
 
-        // Vérifier si l'utilisateur authentifié est celui qui a créé la réservation
+        // Vérifier que l'utilisateur est bien le propriétaire de la réservation
         if ($reservation->getUser() !== $user) {
             return new JsonResponse(
                 [
@@ -667,8 +674,8 @@ final class ReservationController extends AbstractController
             );
         }
 
+        // Récupérer le trajet lié à la réservation
         $trajet = $reservation->getTrajet();
-
         if ($trajet === null) {
             return new JsonResponse(
                 ['error' => 'Trajet associé introuvable'],
@@ -676,26 +683,70 @@ final class ReservationController extends AbstractController
             );
         }
 
-        // Récupérer le prix du trajet (string) et convertir en float ou int selon ta logique de crédits
-        $creditsARembourser = (int) round(floatval($trajet->getPrix()));
+        // Calculer les crédits à rembourser en convertissant le prix string en int arrondi
+        $creditsARembourser = (int) round(
+            floatval($trajet->getPrix())
+        );
 
-        // Ajouter les crédits à l'utilisateur UNIQUEMENT si la réservation n'a pas encore été remboursée
+        // Si la réservation n'a pas encore été remboursée, appliquer la logique de remboursement
         if (!$reservation->isRembourse()) {
-            $user->setCredits($user->getCredits() + $creditsARembourser);
+            $dateDepart = $trajet->getDateDepart();
+            $heureDepart = $trajet->getHeureDepart();
+            $conducteur = $trajet->getChauffeur();
 
-            // Rembourser l'utilisateur
+            // Fusionner la date et l'heure pour avoir un DateTimeImmutable complet
+            if (
+                $dateDepart instanceof \DateTimeInterface
+                &&
+                $heureDepart instanceof \DateTimeInterface
+            ) {
+                $heure = (int) $heureDepart->format('H');
+                $minute = (int) $heureDepart->format('i');
+
+                if ($dateDepart instanceof \DateTimeImmutable) {
+                    // Si c’est déjà immutable, on peut setTime directement
+                    $dateDepart = $dateDepart->setTime($heure, $minute);
+                } else {
+                    // Sinon convertir en immutable avant de setTime
+                    $dateDepart = \DateTimeImmutable::createFromMutable($dateDepart)->setTime($heure, $minute);
+                }
+            }
+
+            $now = new \DateTimeImmutable();
+            // Calculer la différence en heures entre le départ et maintenant
+            $diffHeures = ($dateDepart->getTimestamp() - $now->getTimestamp()) / 3600;
+
+            if ($diffHeures <= 12 && $diffHeures > 0) {
+                // Si annulation dans les 12h avant départ : partage 50/50 des crédits
+                $moitie = (int) round($creditsARembourser / 2);
+
+                // Rembourser moitié au passager
+                $user->setCredits($user->getCredits() + $moitie);
+
+                $this->manager->persist($user);
+
+                // Donner moitié au chauffeur s'il est bien un User
+                if ($conducteur instanceof User) {
+                    $conducteur->setCredits($conducteur->getCredits() + $moitie);
+                    $this->manager->persist($conducteur);
+                }
+            } else {
+                // Sinon remboursement complet au passager
+                $user->setCredits($user->getCredits() + $creditsARembourser);
+                $this->manager->persist($user);
+            }
+
+            // Marquer la réservation comme remboursée
             $reservation->setIsRembourse(true);
         }
 
-        // Si suppression de la réservation, on change le statut de la réservation en annulée
+        // Modifier le statut en "ANNULEE" 
         $reservation->setStatut("ANNULEE");
 
         $this->manager->flush();
 
         return new JsonResponse(
-            [
-                "message" => "Réservation supprimée avec succès"
-            ],
+            ["message" => "Réservation supprimée avec succès"],
             Response::HTTP_OK
         );
     }
