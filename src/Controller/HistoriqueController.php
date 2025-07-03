@@ -733,6 +733,14 @@ final class HistoriqueController extends AbstractController
                 'dateDepart' => $trajet->getDateDepart()?->format("d-m-Y"),
                 'statut' => $trajet->getStatut(),
                 'estChauffeur' => $trajet->getChauffeur() === $user,
+                'statutReservation' => (function ($reservations, $user) {
+                    foreach ($reservations as $reservation) {
+                        if ($reservation->getUser() === $user) {
+                            return $reservation->getStatut();
+                        }
+                    }
+                    return null;
+                })($trajet->getReservations(), $user),
             ];
         }, $allTrajets);
 

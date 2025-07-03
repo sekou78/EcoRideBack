@@ -252,6 +252,7 @@ final class ReservationController extends AbstractController
             $reservation->setTrajet($trajet);
             $reservation->setCreatedAt(new \DateTimeImmutable());
 
+            // Ajout de l'utilisateur au trajet s'il n'y est pas déjà
             if (!$trajet->getUsers()->contains($user)) {
                 $trajet->addUser($user);
             }
@@ -266,7 +267,7 @@ final class ReservationController extends AbstractController
                 );
             }
 
-            // Déduction des crédits du passager
+            // Déduction des crédits — toujours, quel que soit le statut
             $user->setCredits($creditsUtilisateur - $prixTrajet);
 
 
@@ -669,16 +670,24 @@ final class ReservationController extends AbstractController
         $trajet = $reservation->getTrajet();
 
         if ($trajet === null) {
-            return new JsonResponse(['error' => 'Trajet associé introuvable'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(
+                ['error' => 'Trajet associé introuvable'],
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
         }
 
         // Récupérer le prix du trajet (string) et convertir en float ou int selon ta logique de crédits
         $creditsARembourser = (int) round(floatval($trajet->getPrix()));
 
-        // Ajouter les crédits à l'utilisateur
-        $user->setCredits($user->getCredits() + $creditsARembourser);
+        // Ajouter les crédits à l'utilisateur UNIQUEMENT si la réservation n'a pas encore été remboursée
+        if (!$reservation->isRembourse()) {
+            $user->setCredits($user->getCredits() + $creditsARembourser);
 
-        // Si suppression de la reservation, on change le statut de la reservation en annulée
+            // Rembourser l'utilisateur
+            $reservation->setIsRembourse(true);
+        }
+
+        // Si suppression de la réservation, on change le statut de la réservation en annulée
         $reservation->setStatut("ANNULEE");
 
         $this->manager->flush();
