@@ -1142,7 +1142,6 @@ final class TrajetController extends AbstractController
             CASE 
                 WHEN a.statut = 'EN_COURS' THEN 1
                 WHEN a.statut = 'EN_ATTENTE' THEN 2
-                WHEN a.statut = 'TERMINEE' THEN 3
                 ELSE 4
             END AS HIDDEN statutOrdre
         ");
@@ -1159,16 +1158,143 @@ final class TrajetController extends AbstractController
 
         // Formatage des résultats pour l’API (JSON)
         $items = array_map(function ($trajet) {
-            // $avis = array_map(
-            //     function ($avis) {
-            //         return [
-            //             'id' => $avis->getId(),
-            //             'note' => $avis->getNote(),
-            //             'commentaire' => $avis->getCommentaire(),
-            //         ];
-            //     },
-            //     $trajet->getChauffeur()->getAvis()->toArray(),
-            // );
+            $chauffeur = $trajet->getChauffeur();
+            $avisChauffeur = [];
+            $totalNotes = 0;
+            $nombreAvis = 0;
+
+            // Parcours des trajets du chauffeur
+            foreach ($chauffeur->getTrajet() as $trajetChauffeur) {
+                foreach ($trajetChauffeur->getReservations() as $reservation) {
+                    foreach ($reservation->getAvis() as $avis) {
+                        if ($avis->isVisible() && !$avis->isRefused()) {
+                            $note = $avis->getNote();
+                            $avisChauffeur[] = [
+                                'id' => $avis->getId(),
+                                'note' => $note,
+                                'commentaire' => $avis->getCommentaire(),
+                            ];
+                            $totalNotes += $note;
+                            $nombreAvis++;
+                        }
+                    }
+                }
+            }
+
+            // Calcul de la note moyenne
+            $moyenneNoteChauffeur = $nombreAvis > 0 ? round($totalNotes / $nombreAvis, 2) : null;
+
+            return [
+                'id' => $trajet->getId(),
+                'adresseDepart' => $trajet->getAdresseDepart(),
+                'adresseArrivee' => $trajet->getAdresseArrivee(),
+                'placesDisponibles' => $trajet->getNombrePlacesDisponible(),
+                'prix' => $trajet->getPrix(),
+                'dateDepart' => $trajet->getDateDepart()?->format("d-m-Y"),
+                'heureDepart' => $trajet->getHeureDepart()?->format("H:i"),
+                'dateArrivee' => $trajet->getDateArrivee()?->format("d-m-Y"),
+                'dureeVoyage' => $trajet->getDureeVoyage()?->format("H:i"),
+                'peage' => $trajet->isPeage() ? 'oui' : 'non',
+                'estEcologique' => $trajet->isEstEcologique() ? 'oui' : 'non',
+                'chauffeur' => $chauffeur->getPseudo(),
+                'avisChauffeur' => $avisChauffeur,
+                'moyenneNoteChauffeur' => $moyenneNoteChauffeur,
+                'image' => $chauffeur->getImage()
+                    ? $this->generateUrl('app_api_image_show', ['id' => $chauffeur->getImage()->getId()])
+                    : null,
+                'statut' => $trajet->getStatut(),
+                'createdAt' => $trajet->getCreatedAt()?->format("d-m-Y"),
+            ];
+        }, (array) $pagination->getItems());
+
+        // Structure complète de la réponse avec pagination
+        $data = [
+            'currentPage' => $pagination->getCurrentPageNumber(),
+            'totalItems' => $pagination->getTotalItemCount(),
+            'itemsPerPage' => $pagination->getItemNumberPerPage(),
+            'totalPages' => ceil(
+                $pagination->getTotalItemCount() / $pagination->getItemNumberPerPage()
+            ),
+            'items' => $items,
+        ];
+
+        // Retourner la réponse JSON
+        return new JsonResponse(
+            $data,
+            JsonResponse::HTTP_OK
+        );
+    }
+
+    #[Route("/api/trajetsFiltres", name: "filtre", methods: "GET")]
+    public function filtre(
+        Request $request,
+        PaginatorInterface $paginator
+    ): JsonResponse {
+        // Récupérer les paramètres de filtre
+        $ecologiqueFilter = $request->query->get('estEcologique');
+        $prixFilter = $request->query->get('prix');
+        $dureeVoyageFilter = $request->query->get('dureeVoyage');
+
+        // Ajout récupération du filtre statut
+        $statutFilter = $request->query->get('statut') ?? ['EN_ATTENTE'];
+
+        $page = $request->query->getInt('page', 1);
+        $limit = $request->query->getInt('limit', 5); // par défaut 5 items par page
+
+        // Création de la requête pour récupérer tous les Trajets
+        $queryBuilder = $this->manager
+            ->getRepository(Trajet::class)
+            ->createQueryBuilder('a')
+            ->innerJoin('a.chauffeur', 'c')
+            ->leftJoin('c.avis', 'r')
+            ->addSelect('c', 'r');
+
+        // Filtre est écologique
+        if ($ecologiqueFilter !== null) {
+            $boolValue = filter_var($ecologiqueFilter, FILTER_VALIDATE_BOOLEAN);
+            $queryBuilder->andWhere('a.estEcologique = :eco')
+                ->setParameter('eco', $boolValue);
+        }
+
+        // Filtre sur le prix
+        if ($prixFilter !== null) {
+            $queryBuilder->andWhere('a.prix <= :prix')
+                ->setParameter('prix', $prixFilter);
+        }
+
+        // Filtre sur la durée du voyage
+        if ($dureeVoyageFilter) {
+            $queryBuilder->andWhere('a.dureeVoyage <= :duree')
+                ->setParameter('duree', new \DateTime($dureeVoyageFilter));
+        }
+
+        // Filtre sur le statut (EN_ATTENTE)
+        if (!is_array($statutFilter)) {
+            $statutFilter = array_map('trim', explode(',', $statutFilter));
+        }
+
+        $queryBuilder->andWhere('a.statut IN (:statuts)')
+            ->setParameter('statuts', $statutFilter);
+
+        // Tri personnalisé : EN_COURS puis EN_ATTENTE puis les autres
+        $queryBuilder->addSelect("
+            CASE 
+                WHEN a.statut = 'EN_ATTENTE' THEN 1
+                ELSE 3
+            END AS HIDDEN statutOrdre
+        ");
+
+        $queryBuilder->orderBy('statutOrdre', 'ASC');
+        $queryBuilder->addOrderBy('a.dateDepart', 'DESC');
+
+        $pagination = $paginator->paginate(
+            $queryBuilder,
+            $page,
+            $limit
+        );
+
+        // Formatage des résultats pour l’API (JSON)
+        $items = array_map(function ($trajet) {
             $chauffeur = $trajet->getChauffeur();
             $avisChauffeur = [];
             $totalNotes = 0;
