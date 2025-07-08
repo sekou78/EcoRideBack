@@ -872,7 +872,7 @@ final class TrajetController extends AbstractController
             $trajet->setStatut($data['statut']);
         }
 
-        // Gestion du véhicule (optionnel)
+        // Gestion du véhicule
         if (!empty($data['vehiculeId'])) {
             $profilConducteur = $this->manager
                 ->getRepository(ProfilConducteur::class)
@@ -1444,22 +1444,28 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route('/passagers/{id}', name: 'passagers', methods: ['GET'])]
-    public function passagers(
-        TrajetRepository $trajetRepository,
-        Security $security,
-        int $id
-    ): JsonResponse {
-        $user = $security->getUser();
+    #[Route('/passagers/{id}', name: 'passagers', methods: 'GET')]
+    public function passagers(int $id): JsonResponse
+    {
+
+        $user = $this->security->getUser();
 
         if (!$user instanceof User) {
-            return new JsonResponse(['error' => 'Utilisateur non authentifié'], 401);
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non authentifié'
+                ],
+                401
+            );
         }
 
-        $trajet = $trajetRepository->find($id);
+        $trajet = $this->repository->find($id);
 
         if (!$trajet) {
-            return new JsonResponse(['error' => 'Trajet non trouvé'], 404);
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                404
+            );
         }
 
         // Vérifie que l'utilisateur est le chauffeur de ce trajet
@@ -1468,10 +1474,21 @@ final class TrajetController extends AbstractController
 
         $roles = $user->getRoles();
         $isChauffeur = $chauffeur && $chauffeur->getId() === $userId;
-        $hasRightRole = in_array('ROLE_CHAUFFEUR', $roles) || in_array('ROLE_PASSAGER_CHAUFFEUR', $roles);
+        $hasRightRole = in_array(
+            'ROLE_CHAUFFEUR',
+            $roles
+        )
+            ||
+            in_array(
+                'ROLE_PASSAGER_CHAUFFEUR',
+                $roles
+            );
 
         if (!($isChauffeur && $hasRightRole)) {
-            return new JsonResponse(['error' => 'Accès interdit'], 403);
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
         }
 
         //récupérer les passagers via les réservations
@@ -1490,5 +1507,106 @@ final class TrajetController extends AbstractController
         }
 
         return new JsonResponse($passagers);
+    }
+
+    #[Route('/terminee/{id}', name: 'terminee', methods: 'POST')]
+    public function terminee(int $id): JsonResponse
+    {
+        $trajet = $this->manager
+            ->getRepository(
+                Trajet::class
+            )->find($id);
+
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non authentifié'
+                ],
+                401
+            );
+        }
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé.'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        if ($trajet->getChauffeur() !== $user) {
+            return new JsonResponse(
+                [
+                    'error' => 'Vous ne pouvez pas terminer ce trajet.'
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        if (
+            !in_array(
+                'ROLE_CHAUFFEUR',
+                $user->getRoles()
+            )
+            &&
+            !in_array(
+                'ROLE_PASSAGER_CHAUFFEUR',
+                $user->getRoles()
+            )
+        ) {
+            return new JsonResponse(
+                ['error' => 'Rôle non autorisé.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Vérifier si les crédits ont déjà été transférés
+        if ($trajet->isCreditsTransferred()) {
+            return new JsonResponse(
+                [
+                    'error' => 'Les crédits ont déjà été transférés pour ce trajet.'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Transfert de crédits à l’admin
+        $admin = $this->manager
+            ->getRepository(User::class)
+            ->findOneBy(
+                ['isAdmin' => true]
+            );
+
+        if (!$admin) {
+            return new JsonResponse(
+                ['error' => 'Admin introuvable.'],
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+
+        if ($user->getCredits() < 2) {
+            return new JsonResponse(
+                ['error' => 'Crédits insuffisants.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $user->setCredits($user->getCredits() - 2);
+        $admin->setCredits($admin->getCredits() + 2);
+
+        // Mise à jour du statut et marquage
+        $trajet->setStatut('EN_TERMINEE');
+        $trajet->setUpdatedAt(new \DateTimeImmutable());
+        $trajet->setIsCreditsTransferred(true);
+
+        $this->manager->flush();
+
+        return new JsonResponse(
+            [
+                'message' => 'Trajet terminé et crédits transférés.'
+            ],
+            Response::HTTP_OK
+        );
     }
 }

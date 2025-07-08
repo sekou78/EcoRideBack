@@ -54,6 +54,7 @@ class CreateAdminCommand extends Command
         $user->setPseudo("admin");
         $user->setRoles(["ROLE_ADMIN"]);
         $user->setCompteSuspendu(false);
+        $user->setIsAdmin(true);
 
         $user->setCreatedAt(new \DateTimeImmutable());
 

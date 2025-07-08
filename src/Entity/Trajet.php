@@ -159,6 +159,9 @@ class Trajet
     #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'trajet')]
     private Collection $users;
 
+    #[ORM\Column(type: 'boolean')]
+    private bool $isCreditsTransferred = false;
+
     public function __construct()
     {
         $this->reservations = new ArrayCollection();
@@ -491,6 +494,17 @@ class Trajet
     {
         $this->vehicule = $vehicule;
 
+        return $this;
+    }
+
+    public function isCreditsTransferred(): bool
+    {
+        return $this->isCreditsTransferred;
+    }
+
+    public function setIsCreditsTransferred(bool $value): self
+    {
+        $this->isCreditsTransferred = $value;
         return $this;
     }
 }

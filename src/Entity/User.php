@@ -229,6 +229,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     )]
     private ?string $autresPreferences = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $isAdmin = null;
+
     /** @throws \Exception */
     public function __construct()
     {
@@ -694,6 +697,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setAutresPreferences(?string $autresPreferences): static
     {
         $this->autresPreferences = $autresPreferences;
+
+        return $this;
+    }
+
+    public function isAdmin(): ?bool
+    {
+        return $this->isAdmin;
+    }
+
+    public function setIsAdmin(?bool $isAdmin): static
+    {
+        $this->isAdmin = $isAdmin;
 
         return $this;
     }
