@@ -106,7 +106,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'employes:read',
             'admin:read',
             'avis:read',
-            'image:read'
+            'image:read',
+            'user:read',
         ]
     )]
     private ?string $pseudo = null;
@@ -169,6 +170,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $avis;
 
     #[ORM\Column]
+    #[Groups(['user:read'])]
     private ?bool $compteSuspendu = null;
 
     /**

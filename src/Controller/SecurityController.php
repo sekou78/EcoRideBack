@@ -961,4 +961,74 @@ final class SecurityController extends AbstractController
             Response::HTTP_OK
         );
     }
+
+    #[Route(
+        '/droitsReactiverComptes/{id}',
+        name: 'droitsReactiverComptes',
+        methods: 'PUT'
+    )]
+    #[IsGranted('ROLE_ADMIN')]
+    public function droitsReactiverComptes(
+        int $id,
+        EntityManagerInterface $manager
+    ): JsonResponse {
+        $droit = $manager
+            ->getRepository(User::class)
+            ->findOneBy(['id' => $id]);
+
+        // Vérification si l'utilisateur a le rôle requis
+        if (
+            !$this->isGranted('ROLE_ADMIN')
+        ) {
+            return new JsonResponse(
+                ['message' => 'Accès réfusé'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        if (!$droit) {
+            return new JsonResponse(
+                ['error' => 'User non trouvé'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Suspension du compte
+        $droit->setCompteSuspendu(false);
+
+        $droit->setUpdatedAt(new DateTimeImmutable());
+
+        $manager->flush();
+
+        return new JsonResponse(
+            ['message' => 'Compte reactiver'],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route('/gestion/employes', name: 'gestionEmployes', methods: 'GET')]
+    #[IsGranted('ROLE_ADMIN')]
+    public function gestionEmployes(): JsonResponse
+    {
+        $user = $this->security->getUser();
+
+        if (!$user || !in_array('ROLE_ADMIN', $user->getRoles())) {
+            return new JsonResponse(['error' => 'Accès refusé.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $employes = $this->manager->getRepository(User::class)->findAll();
+
+        // Filtrer les utilisateurs avec le rôle ROLE_EMPLOYE
+        $employesFiltrés = array_filter($employes, function ($user) {
+            return in_array('ROLE_EMPLOYE', $user->getRoles());
+        });
+
+        $data = $this->serializer->serialize(
+            $employesFiltrés,
+            'json',
+            ['groups' => ['user:read']]
+        );
+
+        return new JsonResponse($data, Response::HTTP_OK, [], true);
+    }
 }
