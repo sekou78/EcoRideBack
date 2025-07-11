@@ -18,6 +18,7 @@ use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpKernel\KernelInterface;
+use Knp\Component\Pager\PaginatorInterface;
 
 #[Route('/api', name: 'app_api_')]
 final class SecurityController extends AbstractController
@@ -924,11 +925,9 @@ final class SecurityController extends AbstractController
         ]
     )]
     #[IsGranted('ROLE_ADMIN')]
-    public function droitSuspensionComptes(
-        int $id,
-        EntityManagerInterface $manager
-    ): JsonResponse {
-        $droit = $manager
+    public function droitSuspensionComptes(int $id): JsonResponse
+    {
+        $droit = $this->manager
             ->getRepository(User::class)
             ->findOneBy(['id' => $id]);
 
@@ -954,7 +953,7 @@ final class SecurityController extends AbstractController
 
         $droit->setUpdatedAt(new DateTimeImmutable());
 
-        $manager->flush();
+        $this->manager->flush();
 
         return new JsonResponse(
             ['message' => 'Compte suspendu'],
@@ -968,11 +967,9 @@ final class SecurityController extends AbstractController
         methods: 'PUT'
     )]
     #[IsGranted('ROLE_ADMIN')]
-    public function droitsReactiverComptes(
-        int $id,
-        EntityManagerInterface $manager
-    ): JsonResponse {
-        $droit = $manager
+    public function droitsReactiverComptes(int $id): JsonResponse
+    {
+        $droit = $this->manager
             ->getRepository(User::class)
             ->findOneBy(['id' => $id]);
 
@@ -998,7 +995,7 @@ final class SecurityController extends AbstractController
 
         $droit->setUpdatedAt(new DateTimeImmutable());
 
-        $manager->flush();
+        $this->manager->flush();
 
         return new JsonResponse(
             ['message' => 'Compte reactiver'],
@@ -1008,27 +1005,172 @@ final class SecurityController extends AbstractController
 
     #[Route('/gestion/employes', name: 'gestionEmployes', methods: 'GET')]
     #[IsGranted('ROLE_ADMIN')]
-    public function gestionEmployes(): JsonResponse
-    {
+    public function gestionEmployes(
+        Request             $request,
+        PaginatorInterface  $paginator
+    ): JsonResponse {
         $user = $this->security->getUser();
 
-        if (!$user || !in_array('ROLE_ADMIN', $user->getRoles())) {
-            return new JsonResponse(['error' => 'Accès refusé.'], Response::HTTP_FORBIDDEN);
+        if (!$user || !in_array(
+            'ROLE_ADMIN',
+            $user->getRoles()
+        )) {
+            return new JsonResponse(
+                ['error' => 'Accès refusé.'],
+                Response::HTTP_FORBIDDEN
+            );
         }
 
-        $employes = $this->manager->getRepository(User::class)->findAll();
+        $employes = $this->manager
+            ->getRepository(User::class)
+            ->findAll();
 
-        // Filtrer les utilisateurs avec le rôle ROLE_EMPLOYE
-        $employesFiltrés = array_filter($employes, function ($user) {
-            return in_array('ROLE_EMPLOYE', $user->getRoles());
+        // Filtre : ne garder que ROLE_EMPLOYE
+        $employesFiltres = array_filter($employes, function (User $u) {
+            return in_array('ROLE_EMPLOYE', $u->getRoles(), true);
         });
 
-        $data = $this->serializer->serialize(
-            $employesFiltrés,
+        // Pagination KNP (5 par page)
+        $pagination = $paginator->paginate(
+            $employesFiltres,
+            $request->query->getInt('page', 1),
+            5
+        );
+
+        // Sérialiser la page courante
+        $jsonPage = $this->serializer->serialize(
+            $pagination->getItems(),
             'json',
             ['groups' => ['user:read']]
         );
 
-        return new JsonResponse($data, Response::HTTP_OK, [], true);
+        return new JsonResponse([
+            'page' => $pagination->getCurrentPageNumber(),
+            'limit' => $pagination->getItemNumberPerPage(),
+            'total' => $pagination->getTotalItemCount(),
+            'totalPages' => ceil(
+                $pagination->getTotalItemCount()
+                    /
+                    $pagination->getItemNumberPerPage()
+            ),
+            'items' => json_decode($jsonPage, true),
+        ]);
+    }
+
+    #[Route('/gestion/utilisateurs', name: 'gestionUtilisateurs', methods: 'GET')]
+    #[IsGranted('ROLE_ADMIN')]
+    public function gestionUtilisateurs(
+        Request $request,
+        PaginatorInterface $paginator
+    ): JsonResponse {
+        $user = $this->security->getUser();
+
+        if (!$user || !in_array(
+            'ROLE_ADMIN',
+            $user->getRoles()
+        )) {
+            return new JsonResponse(
+                ['error' => 'Accès refusé.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Récupère tous les comptes
+        $utilisateurs = $this->manager
+            ->getRepository(User::class)
+            ->findAll();
+
+        // Filtre : on exclut ceux qui CONTIENNENT ROLE_EMPLOYE OU ROLE_ADMIN
+        $filtres = array_filter($utilisateurs, function (User $user) {
+            $roles = $user->getRoles();
+            return !in_array('ROLE_EMPLOYE', $roles, true) && !in_array('ROLE_ADMIN', $roles, true);
+        });
+
+        // Paginer ce tableau filtré
+        $pagination = $paginator->paginate(
+            $filtres,                      // tableau à paginer
+            $request->query->getInt('page', 1), // page courante
+            5                              // limite par page
+        );
+
+        // Sérialiser uniquement les items de la page courante
+        $json = $this->serializer->serialize(
+            $pagination->getItems(),
+            'json',
+            ['groups' => ['user:read']]
+        );
+
+        return new JsonResponse([
+            'page'       => $pagination->getCurrentPageNumber(),
+            'limit'      => $pagination->getItemNumberPerPage(),
+            'total'      => $pagination->getTotalItemCount(),
+            'totalPages' => ceil(
+                $pagination->getTotalItemCount()
+                    /
+                    $pagination->getItemNumberPerPage()
+            ),
+            'items'      => json_decode($json, true),
+        ]);
+    }
+
+    #[Route('/deleteAccount/{id}', name: 'deleteAccount', methods: 'DELETE')]
+    public function deleteAccount(string $id): JsonResponse
+    {
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non connecté'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $userToDelete = null;
+        $selfDelete   = false;
+
+        // Détermine la cible
+        if ($id === 'me' || $id === (string) $currentUser->getId()) {
+            $userToDelete = $currentUser;
+            $selfDelete   = true;
+        } else {
+            // Seul un admin peut supprimer un autre utilisateur
+            $this->denyAccessUnlessGranted('ROLE_ADMIN');
+            $userToDelete = $this->manager
+                ->getRepository(User::class)
+                ->find($id);
+            if (!$userToDelete) {
+                return new JsonResponse(
+                    ['error' => 'Utilisateur introuvable'],
+                    Response::HTTP_NOT_FOUND
+                );
+            }
+        }
+
+        // Empêcher la suppression de l’admin
+        if (method_exists($userToDelete, 'getRoles') && in_array('ROLE_ADMIN', $userToDelete->getRoles())) {
+            return new JsonResponse(
+                ['error' => 'Suppression interdite'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Suppression
+        $this->manager->remove($userToDelete);
+        $this->manager->flush();
+
+        // Si on supprime le compte courant (par lui-même ou admin), on vide la session
+        if ($selfDelete) {
+            $this->container->get('security.token_storage')->setToken(null);
+            $this->container->get('session')->invalidate();
+        }
+
+        return new JsonResponse(
+            [
+                'message' => 'Compte supprimé',
+                'selfDelete' => $selfDelete
+            ],
+            Response::HTTP_OK
+        );
     }
 }

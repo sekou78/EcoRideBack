@@ -116,6 +116,7 @@ class ProfilConducteur
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'profilConducteurs')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
 
     #[ORM\OneToMany(mappedBy: 'vehicule', targetEntity: Trajet::class)]

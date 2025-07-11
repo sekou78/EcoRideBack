@@ -149,13 +149,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Historique>
      */
-    #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'user')]
+    #[ORM\OneToMany(
+        targetEntity: Historique::class,
+        mappedBy: 'user',
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
     private Collection $historiques;
 
     /**
      * @var Collection<int, ProfilConducteur>
      */
-    #[ORM\OneToMany(targetEntity: ProfilConducteur::class, mappedBy: 'user')]
+    #[ORM\OneToMany(
+        targetEntity: ProfilConducteur::class,
+        mappedBy: 'user',
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
     #[Groups([
         'profilConducteur:read',
         'trajet:read',
@@ -166,7 +176,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Avis>
      */
-    #[ORM\OneToMany(targetEntity: Avis::class, mappedBy: 'user')]
+    #[ORM\OneToMany(
+        targetEntity: Avis::class,
+        mappedBy: 'user',
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
     private Collection $avis;
 
     #[ORM\Column]
@@ -188,10 +203,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?bool $isPassagerChauffeur = null;
 
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Reservation::class)]
+    #[ORM\OneToMany(
+        mappedBy: 'user',
+        targetEntity: Reservation::class,
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
     private Collection $reservations;
 
-    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
     #[Groups(
         [
             'user:read',

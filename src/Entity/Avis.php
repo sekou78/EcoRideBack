@@ -35,6 +35,7 @@ class Avis
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'avis')]
+    #[ORM\JoinColumn(onDelete: 'CASCADE')]
     #[Groups(['avis:read', 'reservation:read'])]
     private ?User $user = null;
 
