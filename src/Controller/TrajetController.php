@@ -413,6 +413,20 @@ final class TrajetController extends AbstractController
             );
         }
 
+        // AJOUT : comparer les places du trajet et celles du véhicule
+        // ex. 4
+        $placesVehicule = $profilConducteur->getNombrePlaces();
+        // ex. 5          
+        $placesTrajet   = $trajet->getNombrePlacesDisponible();
+
+        if ($placesTrajet > $placesVehicule) {
+            return new JsonResponse(
+                ['error' => "Le trajet demande $placesTrajet place(s) alors que "
+                    . "le véhicule n'en possède que $placesVehicule."],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
         // Vérifier que le véhicule n’est pas déjà affecté à un trajet non terminé
         $trajetEnCours = $this->manager
             ->getRepository(Trajet::class)
@@ -904,6 +918,21 @@ final class TrajetController extends AbstractController
                 ['errors' => $errorMessages],
                 Response::HTTP_BAD_REQUEST
             );
+        }
+
+        // --- AJOUT de la vérification places trajet vs places véhicule ---
+        if ($profilConducteur) {
+            $placesVehicule = $profilConducteur->getNombrePlaces();
+            $placesTrajet = $trajet->getNombrePlacesDisponible();
+
+            if ($placesTrajet > $placesVehicule) {
+                return new JsonResponse(
+                    [
+                        'error' => "Le trajet demande $placesTrajet place(s) alors que le véhicule n'en possède que $placesVehicule."
+                    ],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
         }
 
         // Réinitialiser les utilisateurs passagers existants avant d'ajouter les nouveaux
