@@ -1596,7 +1596,7 @@ final class TrajetController extends AbstractController
         $admin->setCredits($admin->getCredits() + 2);
 
         // Mise à jour du statut et marquage
-        $trajet->setStatut('EN_TERMINEE');
+        $trajet->setStatut('TERMINEE');
         $trajet->setUpdatedAt(new \DateTimeImmutable());
         $trajet->setIsCreditsTransferred(true);
 
@@ -1608,5 +1608,45 @@ final class TrajetController extends AbstractController
             ],
             Response::HTTP_OK
         );
+    }
+
+    #[Route('/admin/trajets', name: 'admin_trajets_index', methods: 'GET')]
+    #[IsGranted('ROLE_ADMIN')]
+    public function adminIndex(): JsonResponse
+    {
+        $admin = $this->getUser();
+        if (!$admin) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connecté'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Récupère tous les trajets
+        $trajets = $this->manager
+            ->getRepository(Trajet::class)
+            ->createQueryBuilder('t')
+            ->orderBy('t.dateDepart', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        // Si tu préfères ne montrer que les trajets EN_COURS :
+        // ->andWhere('t.statut = :statut')->setParameter('statut', 'EN_COURS')
+
+        // Mise en forme identique à ta route user
+        $items = array_map(static function (Trajet $trajet) {
+            return [
+                'id'             => $trajet->getId(),
+                'adresseDepart'  => $trajet->getAdresseDepart(),
+                'adresseArrivee' => $trajet->getAdresseArrivee(),
+                'prix'           => $trajet->getPrix(),
+                'dateDepart'     => $trajet->getDateDepart()?->format('d-m-Y'),
+                'statut'         => $trajet->getStatut(),
+                // Pas pertinent ici mais on garde la clef pour homogénéité :
+                'estChauffeur'   => false,
+            ];
+        }, $trajets);
+
+        return new JsonResponse(['items' => $items], Response::HTTP_OK);
     }
 }
