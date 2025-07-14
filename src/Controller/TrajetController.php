@@ -841,6 +841,54 @@ final class TrajetController extends AbstractController
             );
         }
 
+        // Gestion du véhicule
+        $profilConducteur = null;
+
+        // 1. Véhicule déjà affecté
+        if ($trajet->getVehicule()) {
+            $profilConducteur = $trajet->getVehicule();
+        }
+
+        // 2. Éventuel nouveau véhicule passé dans la requête
+        if (!empty($data['vehiculeId'])) {
+            $place = $this->manager
+                ->getRepository(ProfilConducteur::class)
+                ->find($data['vehiculeId']);
+
+            if (!$place) {
+                return new JsonResponse(
+                    ['error' => 'Véhicule non trouvé.'],
+                    Response::HTTP_NOT_FOUND
+                );
+            }
+
+            if ($place->getUser() !== $user) {
+                return new JsonResponse(
+                    ['error' => 'Ce véhicule ne vous appartient pas.'],
+                    Response::HTTP_FORBIDDEN
+                );
+            }
+
+            // On le remplaceuniquement si valide
+            $profilConducteur = $place;
+            $trajet->setVehicule($place);
+        }
+
+        // AJOUT de la vérification places trajet vs places véhicule
+        if ($profilConducteur) {
+            $placesVehicule = $profilConducteur->getNombrePlaces();
+            $placesTrajet = $trajet->getNombrePlacesDisponible();
+
+            if ($placesTrajet > $placesVehicule) {
+                return new JsonResponse(
+                    [
+                        'error' => "Le trajet demande $placesTrajet place(s) alors que le véhicule n'en possède que $placesVehicule."
+                    ],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+        }
+
         // Si des nouvelles données sont envoyées, on les utilise pour mettre à jour le trajet
         if (isset($data['adresseDepart'])) {
             $trajet->setAdresseDepart($data['adresseDepart']);
@@ -886,29 +934,7 @@ final class TrajetController extends AbstractController
             $trajet->setStatut($data['statut']);
         }
 
-        // Gestion du véhicule
-        if (!empty($data['vehiculeId'])) {
-            $profilConducteur = $this->manager
-                ->getRepository(ProfilConducteur::class)
-                ->find(
-                    $data['vehiculeId']
-                );
-            if (!$profilConducteur) {
-                return new JsonResponse(
-                    ['error' => 'Véhicule non trouvé.'],
-                    Response::HTTP_NOT_FOUND
-                );
-            }
-            if ($profilConducteur->getUser() !== $user) {
-                return new JsonResponse(
-                    ['error' => 'Ce véhicule ne vous appartient pas.'],
-                    Response::HTTP_FORBIDDEN
-                );
-            }
-            $trajet->setVehicule($profilConducteur);
-        }
-
-        $errors = $this->validator->validate($data);
+        $errors = $this->validator->validate($trajet);
         if (count($errors) > 0) {
             $errorMessages = [];
             foreach ($errors as $error) {
@@ -918,21 +944,6 @@ final class TrajetController extends AbstractController
                 ['errors' => $errorMessages],
                 Response::HTTP_BAD_REQUEST
             );
-        }
-
-        // --- AJOUT de la vérification places trajet vs places véhicule ---
-        if ($profilConducteur) {
-            $placesVehicule = $profilConducteur->getNombrePlaces();
-            $placesTrajet = $trajet->getNombrePlacesDisponible();
-
-            if ($placesTrajet > $placesVehicule) {
-                return new JsonResponse(
-                    [
-                        'error' => "Le trajet demande $placesTrajet place(s) alors que le véhicule n'en possède que $placesVehicule."
-                    ],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
         }
 
         // Réinitialiser les utilisateurs passagers existants avant d'ajouter les nouveaux

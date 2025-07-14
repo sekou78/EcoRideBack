@@ -119,7 +119,12 @@ class ProfilConducteur
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
 
-    #[ORM\OneToMany(mappedBy: 'vehicule', targetEntity: Trajet::class)]
+    #[ORM\OneToMany(
+        mappedBy: 'vehicule',
+        targetEntity: Trajet::class,
+        cascade: ['remove'],
+        orphanRemoval: true
+    )]
     private Collection $trajets;
 
     public function __construct()
