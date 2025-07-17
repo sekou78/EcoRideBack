@@ -19,6 +19,8 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Knp\Component\Pager\PaginatorInterface;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 #[Route('/api', name: 'app_api_')]
 final class SecurityController extends AbstractController
@@ -1114,8 +1116,11 @@ final class SecurityController extends AbstractController
     }
 
     #[Route('/deleteAccount/{id}', name: 'deleteAccount', methods: 'DELETE')]
-    public function deleteAccount(string $id): JsonResponse
-    {
+    public function deleteAccount(
+        string $id,
+        SessionInterface $session,
+        TokenStorageInterface $tokenStorage
+    ): JsonResponse {
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
             return new JsonResponse(
@@ -1129,16 +1134,13 @@ final class SecurityController extends AbstractController
         $userToDelete = null;
         $selfDelete   = false;
 
-        // Détermine la cible
         if ($id === 'me' || $id === (string) $currentUser->getId()) {
             $userToDelete = $currentUser;
             $selfDelete   = true;
         } else {
-            // Seul un admin peut supprimer un autre utilisateur
             $this->denyAccessUnlessGranted('ROLE_ADMIN');
-            $userToDelete = $this->manager
-                ->getRepository(User::class)
-                ->find($id);
+
+            $userToDelete = $this->manager->getRepository(User::class)->find($id);
             if (!$userToDelete) {
                 return new JsonResponse(
                     ['error' => 'Utilisateur introuvable'],
@@ -1147,27 +1149,28 @@ final class SecurityController extends AbstractController
             }
         }
 
-        // Empêcher la suppression de l’admin
-        if (method_exists($userToDelete, 'getRoles') && in_array('ROLE_ADMIN', $userToDelete->getRoles())) {
+        if (in_array(
+            'ROLE_ADMIN',
+            $userToDelete->getRoles(),
+            true
+        )) {
             return new JsonResponse(
                 ['error' => 'Suppression interdite'],
                 Response::HTTP_FORBIDDEN
             );
         }
 
-        // Suppression
         $this->manager->remove($userToDelete);
         $this->manager->flush();
 
-        // Si on supprime le compte courant (par lui-même ou admin), on vide la session
         if ($selfDelete) {
-            $this->container->get('security.token_storage')->setToken(null);
-            $this->container->get('session')->invalidate();
+            $tokenStorage->setToken(null);
+            $session->invalidate();
         }
 
         return new JsonResponse(
             [
-                'message' => 'Compte supprimé',
+                'message' => 'Compte supprimé avec succès.',
                 'selfDelete' => $selfDelete
             ],
             Response::HTTP_OK
