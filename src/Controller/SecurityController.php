@@ -592,7 +592,10 @@ final class SecurityController extends AbstractController
                 $request->getContent(),
                 User::class,
                 'json',
-                [AbstractNormalizer::OBJECT_TO_POPULATE => $this->getUser()],
+                [
+                    AbstractNormalizer::OBJECT_TO_POPULATE => $this
+                        ->getUser()
+                ],
             );
 
         $user->setUpdatedAt(new \DateTimeImmutable());
@@ -1172,6 +1175,62 @@ final class SecurityController extends AbstractController
             [
                 'message' => 'Compte supprimé avec succès.',
                 'selfDelete' => $selfDelete
+            ],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route('/changePassword', name: 'change_password', methods: 'POST')]
+    public function changePassword(Request $request): JsonResponse
+    {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $data = json_decode(
+            $request->getContent(),
+            true
+        );
+
+        $oldPassword = $data['oldPassword'] ?? null;
+        $newPassword = $data['newPassword'] ?? null;
+
+        if (!$oldPassword || !$newPassword) {
+            return new JsonResponse(
+                ['error' => 'Champs requis manquants'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Vérifie l'ancien mot de passe
+        if (!$this->passwordHasher->isPasswordValid(
+            $user,
+            $oldPassword
+        )) {
+            return new JsonResponse(
+                [
+                    'error' => 'Ancien mot de passe incorrect'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Hashage du nouveau mot de passe
+        $hashedNewPassword = $this->passwordHasher->hashPassword($user, $newPassword);
+        $user->setPassword($hashedNewPassword);
+
+        $user->setUpdatedAt(new \DateTimeImmutable());
+
+        $this->manager->flush();
+
+        return new JsonResponse(
+            [
+                'message' => 'Mot de passe modifié avec succès'
             ],
             Response::HTTP_OK
         );
