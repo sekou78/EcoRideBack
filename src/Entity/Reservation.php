@@ -15,7 +15,13 @@ class Reservation
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['reservation:read', 'avis:read', 'trajet:read'])]
+    #[Groups(
+        [
+            'reservation:read',
+            'avis:read',
+            'trajet:read'
+        ]
+    )]
     private ?int $id = null;
 
     #[Assert\Choice(
@@ -31,13 +37,25 @@ class Reservation
     private ?string $statut = null;
 
     #[ORM\ManyToOne(inversedBy: 'reservations')]
-    #[Groups(['reservation:read', 'trajet:read'])]
+    #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]
+    #[Groups(
+        [
+            'reservation:read',
+            'trajet:read',
+            'avis:read'
+        ]
+    )]
     private ?Trajet $trajet = null;
 
     /**
      * @var Collection<int, Avis>
      */
     #[ORM\OneToMany(targetEntity: Avis::class, mappedBy: 'reservation')]
+    #[Groups([
+        'reservation:read',
+        'trajet:read',
+        'trajetChoisi:read',
+    ])]
     private Collection $avis;
 
     #[ORM\Column]
@@ -46,9 +64,14 @@ class Reservation
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    #[ORM\OneToOne(cascade: ['persist'])]
+    #[ORM\ManyToOne(inversedBy: 'reservations')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     #[Groups(['reservation:read'])]
     private ?User $user = null;
+
+    #[ORM\Column(type: 'boolean')]
+    #[Groups(['reservation:read'])]
+    private bool $isRembourse = false;
 
     public function __construct()
     {
@@ -92,22 +115,22 @@ class Reservation
         return $this->avis;
     }
 
-    public function addAvi(Avis $avi): static
+    public function addAvis(Avis $avis): static
     {
-        if (!$this->avis->contains($avi)) {
-            $this->avis->add($avi);
-            $avi->setReservation($this);
+        if (!$this->avis->contains($avis)) {
+            $this->avis->add($avis);
+            $avis->setReservation($this);
         }
 
         return $this;
     }
 
-    public function removeAvi(Avis $avi): static
+    public function removeAvi(Avis $avis): static
     {
-        if ($this->avis->removeElement($avi)) {
+        if ($this->avis->removeElement($avis)) {
             // set the owning side to null (unless already changed)
-            if ($avi->getReservation() === $this) {
-                $avi->setReservation(null);
+            if ($avis->getReservation() === $this) {
+                $avis->setReservation(null);
             }
         }
 
@@ -147,6 +170,17 @@ class Reservation
     {
         $this->user = $user;
 
+        return $this;
+    }
+
+    public function isRembourse(): bool
+    {
+        return $this->isRembourse;
+    }
+
+    public function setIsRembourse(bool $isRembourse): self
+    {
+        $this->isRembourse = $isRembourse;
         return $this;
     }
 }

@@ -13,15 +13,15 @@ class Avis
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['avis:read'])]
+    #[Groups(['avis:read', 'reservation:read'])]
     private ?int $id = null;
 
     #[ORM\Column]
-    #[Groups(['avis:read'])]
+    #[Groups(['avis:read', 'reservation:read'])]
     private ?int $note = null;
 
-    #[ORM\Column(type: Types::TEXT)]
-    #[Groups(['avis:read'])]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['avis:read', 'reservation:read'])]
     private ?string $commentaire = null;
 
     #[ORM\ManyToOne(inversedBy: 'avis')]
@@ -35,12 +35,21 @@ class Avis
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'avis')]
-    #[Groups(['avis:read'])]
+    #[ORM\JoinColumn(onDelete: 'CASCADE')]
+    #[Groups(['avis:read', 'reservation:read'])]
     private ?User $user = null;
 
     #[ORM\Column]
     #[Groups(['avis:read'])]
     private ?bool $isVisible = null;
+
+    #[ORM\Column]
+    #[Groups(['avis:read'])]
+    private ?bool $isRefused = null;
+
+    #[ORM\Column(type: 'boolean')]
+    #[Groups(['avis:read', 'reservation:read'])]
+    private bool $credited = false;
 
     public function getId(): ?int
     {
@@ -128,6 +137,29 @@ class Avis
     {
         $this->isVisible = $isVisible;
 
+        return $this;
+    }
+
+    public function isRefused(): ?bool
+    {
+        return $this->isRefused;
+    }
+
+    public function setIsRefused(?bool $isRefused): static
+    {
+        $this->isRefused = $isRefused;
+
+        return $this;
+    }
+
+    public function getCredited(): bool
+    {
+        return $this->credited;
+    }
+
+    public function setCredited(bool $credited): self
+    {
+        $this->credited = $credited;
         return $this;
     }
 }

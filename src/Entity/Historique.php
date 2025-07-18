@@ -34,6 +34,7 @@ class Historique
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'historiques')]
+    #[ORM\JoinColumn(onDelete: 'CASCADE')]
     #[Groups(['historique:read'])]
     private ?User $user = null;
 

@@ -1,35 +1,20 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Image index{% endblock %}
+{% block title %}Hello ImageController!{% endblock %}
 
 {% block body %}
-    <h1>Image index</h1>
+<style>
+    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+</style>
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Identite</th>
-                <th>actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for image in images %}
-            <tr>
-                <td>{{ image.id }}</td>
-                <td>{{ image.identite }}</td>
-                <td>
-                    <a href="{{ path('app_image_show', {'id': image.id}) }}">show</a>
-                    <a href="{{ path('app_image_edit', {'id': image.id}) }}">edit</a>
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="3">no records found</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<div class="example-wrapper">
+    <h1>Hello {{ controller_name }}! ✅</h1>
 
-    <a href="{{ path('app_image_new') }}">Create new</a>
+    This friendly message is coming from:
+    <ul>
+        <li>Your controller at <code>C:/Users/sciss/Downloads/ECF_studi/EcoRideBack/src/Controller/ImageController.php</code></li>
+        <li>Your template at <code>C:/Users/sciss/Downloads/ECF_studi/EcoRideBack/templates/image/index.html.twig</code></li>
+    </ul>
+</div>
 {% endblock %}
