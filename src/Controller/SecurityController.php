@@ -930,8 +930,11 @@ final class SecurityController extends AbstractController
         ]
     )]
     #[IsGranted('ROLE_ADMIN')]
-    public function droitSuspensionComptes(int $id): JsonResponse
-    {
+    public function droitSuspensionComptes(
+        int $id,
+        TokenStorageInterface $tokenStorage,
+        SessionInterface $session
+    ): JsonResponse {
         $droit = $this->manager
             ->getRepository(User::class)
             ->findOneBy(['id' => $id]);
@@ -956,10 +959,28 @@ final class SecurityController extends AbstractController
         // Suspension du compte
         $droit->setCompteSuspendu(true);
 
+        // Forcer la déconnexion si l'utilisateur est actuellement connecté
+        $currentUser = $this->security->getUser();
+
+        if ($currentUser instanceof User && $currentUser->getId() === $droit->getId()) {
+            $tokenStorage->setToken(null);
+            $session->invalidate();
+        }
+
+
         $droit->setUpdatedAt(new DateTimeImmutable());
 
         $this->manager->flush();
 
+        return new JsonResponse(
+            ['message' => 'Compte suspendu'],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route('/compte/suspendu', name: 'suspended_account')]
+    public function suspendedAccount(): Response
+    {
         return new JsonResponse(
             ['message' => 'Compte suspendu'],
             Response::HTTP_OK
@@ -1121,8 +1142,8 @@ final class SecurityController extends AbstractController
     #[Route('/deleteAccount/{id}', name: 'deleteAccount', methods: 'DELETE')]
     public function deleteAccount(
         string $id,
-        SessionInterface $session,
-        TokenStorageInterface $tokenStorage
+        TokenStorageInterface $tokenStorage,
+        SessionInterface $session
     ): JsonResponse {
         $currentUser = $this->getUser();
         if (!$currentUser instanceof User) {
