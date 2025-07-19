@@ -37,6 +37,10 @@ class AccountSuspendedListener
             $excludedPaths = [
                 '/connexion',        // page de connexion
                 '/deconnexion',           // déconnexion
+                '/pageSuspensionCompte', // page de suspension du compte
+                '/build',
+                '/uploads',
+                '/assets',
 
             ];
 
