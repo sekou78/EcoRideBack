@@ -2,10 +2,11 @@
 
 namespace App\Controller;
 
-use App\Entity\Image;
 use App\Entity\User;
+use App\Repository\ProfilConducteurRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -16,15 +17,24 @@ use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpKernel\KernelInterface;
+use Knp\Component\Pager\PaginatorInterface;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 #[Route('/api', name: 'app_api_')]
 final class SecurityController extends AbstractController
 {
+    private string $uploadDir;
+
     public function __construct(
         private SerializerInterface $serializer,
         private EntityManagerInterface $manager,
         private UserPasswordHasherInterface $passwordHasher,
-        private ValidatorInterface $validator
+        private ValidatorInterface $validator,
+        private ProfilConducteurRepository $profilConducteurRepository,
+        private Security $security,
+        private KernelInterface $kernel
     ) {}
     #[Route('/registration', name: 'registration', methods: 'POST')]
     #[OA\Post(
@@ -55,14 +65,6 @@ final class SecurityController extends AbstractController
                             property: "pseudo",
                             type: "string",
                             example: "Dinga223"
-                        ),
-                        new OA\Property(
-                            property: "roles",
-                            type: "array",
-                            items: new OA\Items(
-                                type: "string",
-                                example: "ROLE_PASSAGER"
-                            )
                         )
                     ]
                 )
@@ -90,14 +92,14 @@ final class SecurityController extends AbstractController
                             new OA\Property(
                                 property: "apiToken",
                                 type: "string",
-                                example: "31a023e212f116124a36af14ea0c1c3806eb9378"
+                                example: "31a023e......"
                             ),
                             new OA\Property(
                                 property: "roles",
                                 type: "array",
                                 items: new OA\Items(
                                     type: "string",
-                                    example: "ROLE_PASSAGER"
+                                    example: "ROLE_USER"
                                 )
                             ),
                             new OA\Property(
@@ -157,6 +159,8 @@ final class SecurityController extends AbstractController
 
         //Chaque utilisateur beneficie de 20 crédits à la création du compte
         $user->setCredits(20);
+
+        $user->setRoles(["ROLE_USER"]);
 
         // Etat du compte par défaut
         $user->setCompteSuspendu(false);
@@ -334,7 +338,7 @@ final class SecurityController extends AbstractController
         summary: "Les informations de l'objet User",
         responses: [
             new OA\Response(
-                response: 201,
+                response: 200,
                 description: "Les champs de l'utilisateur",
                 content: new OA\MediaType(
                     mediaType: "application/json",
@@ -388,26 +392,45 @@ final class SecurityController extends AbstractController
     public function me(): JsonResponse
     {
         $user = $this->getUser();
-
-        $responseData = $this->serializer
-            ->serialize(
-                $user,
-                'json',
+        if (!$user instanceof User) {
+            return new JsonResponse(
                 [
-                    AbstractNormalizer::ATTRIBUTES => [
-                        'id',
-                        'email',
-                        'roles',
-                        'apiToken',
-                        'pseudo',
-                        'nom',
-                        'prenom'
-                    ]
-                ]
+                    'error' => 'Utilisateur non connecté'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $profilConducteur = $this->profilConducteurRepository
+            ->findOneBy(
+                ['user' => $user]
+            );
+
+        $image = $user->getImage();
+
+        $trajet = $user->getTrajet();
+
+        $responseData = [
+            "user" => $user,
+            "image" => $image,
+            "profilConducteur" => $profilConducteur,
+            "trajet" => $trajet,
+        ];
+
+        $json = $this->serializer
+            ->serialize(
+                $responseData,
+                'json',
+                ['groups' => [
+                    'user:read',
+                    'image:read',
+                    'profilConducteur:read',
+                    'trajet:read',
+                ]]
             );
 
         return new JsonResponse(
-            $responseData,
+            $json,
             Response::HTTP_OK,
             [],
             true
@@ -450,22 +473,6 @@ final class SecurityController extends AbstractController
                             property: "dateNaissance",
                             type: "string",
                             example: "10/10/1910"
-                        ),
-                        new OA\Property(
-                            property: "pseudo",
-                            type: "string",
-                            example: "Dinga223"
-                        ),
-                        new OA\Property(
-                            property: "password",
-                            type: "string",
-                            format: "password",
-                            example: "Azerty$1"
-                        ),
-                        new OA\Property(
-                            property: "image",
-                            type: "integer",
-                            example: 7
                         ),
                         new OA\Property(
                             property: "roles",
@@ -570,10 +577,14 @@ final class SecurityController extends AbstractController
     )]
     public function edit(Request $request): JsonResponse
     {
-        $data = json_decode(
-            $request->getContent(),
-            true
-        );
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
 
         //Désérialisation des données de la requête pour mettre à jour l'utilisateur
         $user = $this->serializer
@@ -581,21 +592,13 @@ final class SecurityController extends AbstractController
                 $request->getContent(),
                 User::class,
                 'json',
-                [AbstractNormalizer::OBJECT_TO_POPULATE => $this->getUser()],
+                [
+                    AbstractNormalizer::OBJECT_TO_POPULATE => $this
+                        ->getUser()
+                ],
             );
 
         $user->setUpdatedAt(new \DateTimeImmutable());
-
-        // Hachage du mot de passe si modifié
-        if (isset($request->toArray()['password'])) {
-            $user->setPassword(
-                $this->passwordHasher
-                    ->hashPassword(
-                        $user,
-                        $user->getPassword()
-                    )
-            );
-        }
 
         $errors = $this->validator->validate($user);
         if (count($errors) > 0) {
@@ -610,24 +613,6 @@ final class SecurityController extends AbstractController
             );
         }
 
-        // Mettre à jour l'image si fourni
-        if ($data['image']) {
-            $image = $this->manager
-                ->getRepository(
-                    Image::class
-                )
-                ->find(
-                    $data['image']
-                );
-            if (!$image) {
-                return new JsonResponse(
-                    ['error' => 'Image non trouvée'],
-                    Response::HTTP_BAD_REQUEST
-                );
-            }
-            $image->setUser($user);
-        }
-
         $this->manager->flush();
 
         // Retourner la réponse JSON avec les informations mises à jour
@@ -638,8 +623,6 @@ final class SecurityController extends AbstractController
                 [
                     AbstractNormalizer::ATTRIBUTES => [
                         'id',
-                        'email',
-                        'pseudo',
                         'roles',
                         'nom',
                         'prenom',
@@ -949,9 +932,10 @@ final class SecurityController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function droitSuspensionComptes(
         int $id,
-        EntityManagerInterface $manager
+        TokenStorageInterface $tokenStorage,
+        SessionInterface $session
     ): JsonResponse {
-        $droit = $manager
+        $droit = $this->manager
             ->getRepository(User::class)
             ->findOneBy(['id' => $id]);
 
@@ -975,12 +959,300 @@ final class SecurityController extends AbstractController
         // Suspension du compte
         $droit->setCompteSuspendu(true);
 
+        // Forcer la déconnexion si l'utilisateur est actuellement connecté
+        $currentUser = $this->security->getUser();
+
+        if ($currentUser instanceof User && $currentUser->getId() === $droit->getId()) {
+            $tokenStorage->setToken(null);
+            $session->invalidate();
+        }
+
+
         $droit->setUpdatedAt(new DateTimeImmutable());
 
-        $manager->flush();
+        $this->manager->flush();
 
         return new JsonResponse(
             ['message' => 'Compte suspendu'],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route('/compte/suspendu', name: 'suspended_account')]
+    public function suspendedAccount(): Response
+    {
+        return new JsonResponse(
+            ['message' => 'Compte suspendu'],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route(
+        '/droitsReactiverComptes/{id}',
+        name: 'droitsReactiverComptes',
+        methods: 'PUT'
+    )]
+    #[IsGranted('ROLE_ADMIN')]
+    public function droitsReactiverComptes(int $id): JsonResponse
+    {
+        $droit = $this->manager
+            ->getRepository(User::class)
+            ->findOneBy(['id' => $id]);
+
+        // Vérification si l'utilisateur a le rôle requis
+        if (
+            !$this->isGranted('ROLE_ADMIN')
+        ) {
+            return new JsonResponse(
+                ['message' => 'Accès réfusé'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        if (!$droit) {
+            return new JsonResponse(
+                ['error' => 'User non trouvé'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        // Suspension du compte
+        $droit->setCompteSuspendu(false);
+
+        $droit->setUpdatedAt(new DateTimeImmutable());
+
+        $this->manager->flush();
+
+        return new JsonResponse(
+            ['message' => 'Compte reactiver'],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route('/gestion/employes', name: 'gestionEmployes', methods: 'GET')]
+    #[IsGranted('ROLE_ADMIN')]
+    public function gestionEmployes(
+        Request             $request,
+        PaginatorInterface  $paginator
+    ): JsonResponse {
+        $user = $this->security->getUser();
+
+        if (!$user || !in_array(
+            'ROLE_ADMIN',
+            $user->getRoles()
+        )) {
+            return new JsonResponse(
+                ['error' => 'Accès refusé.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        $employes = $this->manager
+            ->getRepository(User::class)
+            ->findAll();
+
+        // Filtre : ne garder que ROLE_EMPLOYE
+        $employesFiltres = array_filter($employes, function (User $u) {
+            return in_array('ROLE_EMPLOYE', $u->getRoles(), true);
+        });
+
+        // Pagination KNP (5 par page)
+        $pagination = $paginator->paginate(
+            $employesFiltres,
+            $request->query->getInt('page', 1),
+            5
+        );
+
+        // Sérialiser la page courante
+        $jsonPage = $this->serializer->serialize(
+            $pagination->getItems(),
+            'json',
+            ['groups' => ['user:read']]
+        );
+
+        return new JsonResponse([
+            'page' => $pagination->getCurrentPageNumber(),
+            'limit' => $pagination->getItemNumberPerPage(),
+            'total' => $pagination->getTotalItemCount(),
+            'totalPages' => ceil(
+                $pagination->getTotalItemCount()
+                    /
+                    $pagination->getItemNumberPerPage()
+            ),
+            'items' => json_decode($jsonPage, true),
+        ]);
+    }
+
+    #[Route('/gestion/utilisateurs', name: 'gestionUtilisateurs', methods: 'GET')]
+    #[IsGranted('ROLE_ADMIN')]
+    public function gestionUtilisateurs(
+        Request $request,
+        PaginatorInterface $paginator
+    ): JsonResponse {
+        $user = $this->security->getUser();
+
+        if (!$user || !in_array(
+            'ROLE_ADMIN',
+            $user->getRoles()
+        )) {
+            return new JsonResponse(
+                ['error' => 'Accès refusé.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Récupère tous les comptes
+        $utilisateurs = $this->manager
+            ->getRepository(User::class)
+            ->findAll();
+
+        // Filtre : on exclut ceux qui CONTIENNENT ROLE_EMPLOYE OU ROLE_ADMIN
+        $filtres = array_filter($utilisateurs, function (User $user) {
+            $roles = $user->getRoles();
+            return !in_array('ROLE_EMPLOYE', $roles, true) && !in_array('ROLE_ADMIN', $roles, true);
+        });
+
+        // Paginer ce tableau filtré
+        $pagination = $paginator->paginate(
+            $filtres,                      // tableau à paginer
+            $request->query->getInt('page', 1), // page courante
+            5                              // limite par page
+        );
+
+        // Sérialiser uniquement les items de la page courante
+        $json = $this->serializer->serialize(
+            $pagination->getItems(),
+            'json',
+            ['groups' => ['user:read']]
+        );
+
+        return new JsonResponse([
+            'page'       => $pagination->getCurrentPageNumber(),
+            'limit'      => $pagination->getItemNumberPerPage(),
+            'total'      => $pagination->getTotalItemCount(),
+            'totalPages' => ceil(
+                $pagination->getTotalItemCount()
+                    /
+                    $pagination->getItemNumberPerPage()
+            ),
+            'items'      => json_decode($json, true),
+        ]);
+    }
+
+    #[Route('/deleteAccount/{id}', name: 'deleteAccount', methods: 'DELETE')]
+    public function deleteAccount(
+        string $id,
+        TokenStorageInterface $tokenStorage,
+        SessionInterface $session
+    ): JsonResponse {
+        $currentUser = $this->getUser();
+        if (!$currentUser instanceof User) {
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non connecté'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $userToDelete = null;
+        $selfDelete   = false;
+
+        if ($id === 'me' || $id === (string) $currentUser->getId()) {
+            $userToDelete = $currentUser;
+            $selfDelete   = true;
+        } else {
+            $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+            $userToDelete = $this->manager->getRepository(User::class)->find($id);
+            if (!$userToDelete) {
+                return new JsonResponse(
+                    ['error' => 'Utilisateur introuvable'],
+                    Response::HTTP_NOT_FOUND
+                );
+            }
+        }
+
+        if (in_array(
+            'ROLE_ADMIN',
+            $userToDelete->getRoles(),
+            true
+        )) {
+            return new JsonResponse(
+                ['error' => 'Suppression interdite'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        $this->manager->remove($userToDelete);
+        $this->manager->flush();
+
+        if ($selfDelete) {
+            $tokenStorage->setToken(null);
+            $session->invalidate();
+        }
+
+        return new JsonResponse(
+            [
+                'message' => 'Compte supprimé avec succès.',
+                'selfDelete' => $selfDelete
+            ],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route('/changePassword', name: 'change_password', methods: 'POST')]
+    public function changePassword(Request $request): JsonResponse
+    {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $data = json_decode(
+            $request->getContent(),
+            true
+        );
+
+        $oldPassword = $data['oldPassword'] ?? null;
+        $newPassword = $data['newPassword'] ?? null;
+
+        if (!$oldPassword || !$newPassword) {
+            return new JsonResponse(
+                ['error' => 'Champs requis manquants'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Vérifie l'ancien mot de passe
+        if (!$this->passwordHasher->isPasswordValid(
+            $user,
+            $oldPassword
+        )) {
+            return new JsonResponse(
+                [
+                    'error' => 'Ancien mot de passe incorrect'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Hashage du nouveau mot de passe
+        $hashedNewPassword = $this->passwordHasher->hashPassword($user, $newPassword);
+        $user->setPassword($hashedNewPassword);
+
+        $user->setUpdatedAt(new \DateTimeImmutable());
+
+        $this->manager->flush();
+
+        return new JsonResponse(
+            [
+                'message' => 'Mot de passe modifié avec succès'
+            ],
             Response::HTTP_OK
         );
     }

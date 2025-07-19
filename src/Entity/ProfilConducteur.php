@@ -3,9 +3,10 @@
 namespace App\Entity;
 
 use App\Repository\ProfilConducteurRepository;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
 #[ORM\Entity(repositoryClass: ProfilConducteurRepository::class)]
 class ProfilConducteur
@@ -13,40 +14,100 @@ class ProfilConducteur
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?int $id = null;
 
     #[ORM\Column(length: 20)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?string $plaqueImmatriculation = null;
 
+    #[ORM\Column]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
+    private ?\DateTimeImmutable $dateImmatriculation = null;
+
     #[ORM\Column(length: 50)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?string $modele = null;
 
     #[ORM\Column(length: 50)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?string $marque = null;
 
     #[ORM\Column(length: 20)]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?string $couleur = null;
 
     #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
     private ?int $nombrePlaces = null;
 
     #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
-    private ?bool $accepteFumeur = null;
-
-    #[ORM\Column]
-    #[Groups(['profilConducteur:read'])]
-    private ?bool $accepteAnimaux = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['profilConducteur:read'])]
-    private ?string $autresPreferences = null;
+    #[Groups(
+        [
+            'profilConducteur:read',
+            'trajet:read',
+            'trajetChoisi:read',
+            'reservation:read',
+            'avis:read'
+        ]
+    )]
+    private ?bool $electrique = null;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -55,8 +116,21 @@ class ProfilConducteur
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'profilConducteurs')]
-    #[Groups(['profilConducteur:read'])]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
+
+    #[ORM\OneToMany(
+        mappedBy: 'vehicule',
+        targetEntity: Trajet::class,
+        cascade: ['remove'],
+        orphanRemoval: true
+    )]
+    private Collection $trajets;
+
+    public function __construct()
+    {
+        $this->trajets = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -71,6 +145,18 @@ class ProfilConducteur
     public function setPlaqueImmatriculation(string $plaqueImmatriculation): static
     {
         $this->plaqueImmatriculation = $plaqueImmatriculation;
+
+        return $this;
+    }
+
+    public function getDateImmatriculation(): ?\DateTimeImmutable
+    {
+        return $this->dateImmatriculation;
+    }
+
+    public function setDateImmatriculation(\DateTimeImmutable $dateImmatriculation): static
+    {
+        $this->dateImmatriculation = $dateImmatriculation;
 
         return $this;
     }
@@ -123,38 +209,14 @@ class ProfilConducteur
         return $this;
     }
 
-    public function isAccepteFumeur(): ?bool
+    public function isElectrique(): ?bool
     {
-        return $this->accepteFumeur;
+        return $this->electrique;
     }
 
-    public function setAccepteFumeur(bool $accepteFumeur): static
+    public function setElectrique(bool $electrique): static
     {
-        $this->accepteFumeur = $accepteFumeur;
-
-        return $this;
-    }
-
-    public function isAccepteAnimaux(): ?bool
-    {
-        return $this->accepteAnimaux;
-    }
-
-    public function setAccepteAnimaux(bool $accepteAnimaux): static
-    {
-        $this->accepteAnimaux = $accepteAnimaux;
-
-        return $this;
-    }
-
-    public function getAutresPreferences(): ?string
-    {
-        return $this->autresPreferences;
-    }
-
-    public function setAutresPreferences(?string $autresPreferences): static
-    {
-        $this->autresPreferences = $autresPreferences;
+        $this->electrique = $electrique;
 
         return $this;
     }
@@ -191,6 +253,36 @@ class ProfilConducteur
     public function setUser(?User $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Trajet>
+     */
+    public function getTrajets(): Collection
+    {
+        return $this->trajets;
+    }
+
+    public function addTrajet(Trajet $trajet): self
+    {
+        if (!$this->trajets->contains($trajet)) {
+            $this->trajets[] = $trajet;
+            $trajet->setVehicule($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTrajet(Trajet $trajet): self
+    {
+        if ($this->trajets->removeElement($trajet)) {
+            // set the owning side to null (unless already changed)
+            if ($trajet->getVehicule() === $this) {
+                $trajet->setVehicule(null);
+            }
+        }
 
         return $this;
     }

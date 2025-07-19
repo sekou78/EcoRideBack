@@ -21,7 +21,7 @@ use Symfony\Component\Serializer\SerializerInterface;
 use OpenApi\Attributes as OA;
 
 #[Route('api/image', name: 'app_api_image_')]
-#[IsGranted('ROLE_USER')]
+// #[IsGranted('ROLE_USER')]
 final class ImageController extends AbstractController
 {
     private string $uploadDir;
@@ -97,15 +97,18 @@ final class ImageController extends AbstractController
                         properties: [
                             new OA\Property(
                                 property: "id",
-                                type: "integer"
+                                type: "integer",
+                                example: 1
                             ),
                             new OA\Property(
-                                property: "identite",
-                                type: "string"
+                                property: "avatar",
+                                type: "string",
+                                example: "6820b7.....jpg"
                             ),
                             new OA\Property(
                                 property: "filePath",
-                                type: "string"
+                                type: "string",
+                                example: "/images/6820b7.....jpg"
                             ),
                             new OA\Property(
                                 property: "createdAt",
@@ -133,14 +136,26 @@ final class ImageController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function new(Request $request): JsonResponse
     {
-        // Récupérer l'utilisateur connecté
-        $user = $this->getUser();
-        if (!$user) {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non connu'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Vérifier si l'utilisateur a déjà une image
+        if ($user->getImage()) {
             return new JsonResponse(
                 [
-                    'error' => 'User not authenticated'
+                    'image' => json_decode($this->serializer->serialize(
+                        $user->getImage(),
+                        'json',
+                        ['groups' => 'image:read']
+                    ), true)
                 ],
-                Response::HTTP_UNAUTHORIZED
+                Response::HTTP_FORBIDDEN
             );
         }
 
@@ -240,15 +255,17 @@ final class ImageController extends AbstractController
 
         // Créer une nouvelle entité Image
         $image = new Image();
-        $image->setIdentite($fileName);
+        $image->setAvatar($fileName);
         $image->setFilePath('/uploads/images/' . $fileName);
-
-        // Associer l'image à l'utilisateur
-        $image->setUser($user);
 
         $image->setCreatedAt(new \DateTimeImmutable());
 
         $this->manager->persist($image);
+
+        // Associer l'image à l'utilisateur
+        $user->setImage($image);
+        $this->manager->persist($user);
+
         $this->manager->flush();
 
         return new JsonResponse(
@@ -303,16 +320,16 @@ final class ImageController extends AbstractController
             )
         ]
     )]
-    #[IsGranted('ROLE_USER')]
+    // #[IsGranted('ROLE_USER')]
     public function show(int $id): BinaryFileResponse
     {
-        // Récupérer l'utilisateur connecté
-        $user = $this->security->getUser();
-        if (!$user instanceof User) {
-            return new BinaryFileResponse(
-                Response::HTTP_UNAUTHORIZED
-            );
-        }
+        // // Récupérer l'utilisateur connecté
+        // $user = $this->security->getUser();
+        // if (!$user instanceof User) {
+        //     return new BinaryFileResponse(
+        //         Response::HTTP_UNAUTHORIZED
+        //     );
+        // }
 
         // Récupération de l'image en base de données
         $image = $this->repository->findOneBy(['id' => $id]);
@@ -322,12 +339,12 @@ final class ImageController extends AbstractController
             throw $this->createNotFoundException('Image non trouvée');
         }
 
-        // Vérifier que l'utilisateur connecté est bien celui lié à l'image
-        if ($image->getUser()?->getId() !== $user->getId()) {
-            throw $this->createAccessDeniedException(
-                "Vous n'avez pas accès à cette image."
-            );
-        }
+        // // Vérifier que l'utilisateur connecté est bien celui lié à l'image
+        // if ($user->getImage()?->getId() !== $image->getId()) {
+        //     throw $this->createAccessDeniedException(
+        //         "Vous n'avez pas accès à cette image."
+        //     );
+        // }
 
         // Chemin absolu du fichier sur le serveur
         $imagePath = $this
@@ -444,11 +461,11 @@ final class ImageController extends AbstractController
         int $id,
         Request $request
     ): Response {
-        // Récupérer l'utilisateur connecté
-        $user = $this->getUser();
-        if (!$user) {
+        // Récupérer l'utilisateur authentifié
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
             return new JsonResponse(
-                ['error' => 'User not authenticated'],
+                ['error' => 'Utilisateur non connu'],
                 Response::HTTP_UNAUTHORIZED
             );
         }
@@ -464,7 +481,7 @@ final class ImageController extends AbstractController
         }
 
         //Vérifier que l'utilisateur est bien le créateur
-        if ($image->getUser() !== $user) {
+        if ($user->getImage()?->getId() !== $image->getId()) {
             return new JsonResponse(
                 ['error' => "Vous n'êtes pas autorisé à modifier cette image."],
                 Response::HTTP_FORBIDDEN
@@ -574,6 +591,8 @@ final class ImageController extends AbstractController
 
         // Mettre à jour l'image dans la base de données
         $image->setFilePath('/uploads/images/' . $fileName);
+
+        $image->setAvatar($fileName); // Ajouter cette ligne
 
         $image->setUpdatedAt(new DateTimeImmutable());
 
@@ -707,14 +726,18 @@ final class ImageController extends AbstractController
         }
 
         // Vérifier que l'image appartient à l'utilisateur connecté
-        if ($image->getUser()?->getId() !== $user->getId()) {
+        if ($user->getImage()?->getId() !== $image->getId()) {
             return new JsonResponse(
                 ['error' => "Vous n'avez pas accès à cette image, pour la supprimée."],
                 Response::HTTP_FORBIDDEN
             );
         }
 
-        // Construire le chemin absolu du fichier
+        // Supprimer le lien entre l'utilisateur et l'image
+        $user->setImage(null);
+        $this->manager->persist($user);
+
+        // Supprimer le fichier physique
         $filePath = $this->getParameter(
             'kernel.project_dir'
         )

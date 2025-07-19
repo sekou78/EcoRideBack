@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -27,7 +28,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'employes:read',
             'admin:read',
             'avis:read',
-            'image:read'
+            'image:read',
+            'user:read',
         ]
     )]
     private ?int $id = null;
@@ -35,6 +37,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank(message: 'Veuillez renseigner un email.')]
     #[Assert\Email(message: 'Veuillez renseigner un email valide.')]
     #[ORM\Column(length: 180)]
+    #[Groups(
+        [
+            'trajet:read',
+            'reservation:read',
+            'historique:read',
+            'profilConducteur:read',
+            'employes:read',
+            'admin:read',
+            'avis:read',
+            'image:read',
+            'user:read',
+        ]
+    )]
     private ?string $email = null;
 
     /**
@@ -44,6 +59,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\All([
         new Assert\Choice(
             choices: [
+                'ROLE_USER',
                 'ROLE_PASSAGER',
                 'ROLE_CHAUFFEUR',
                 'ROLE_PASSAGER_CHAUFFEUR',
@@ -52,6 +68,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         )
     ])]
     #[ORM\Column]
+    #[Groups(['user:read'])]
     private array $roles = [];
 
     /**
@@ -64,6 +81,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         1 lettre miniscule,
         1chiffre et 1 caractères sepéciale.")]
     #[ORM\Column]
+    #[Groups(['user:read'])]
     private ?string $password = null;
 
     #[ORM\Column]
@@ -73,6 +91,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['user:read'])]
     private ?string $apiToken = null;
 
     #[Assert\NotBlank(message: 'Veuillez renseigner un pseudo.')]
@@ -87,48 +106,86 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             'employes:read',
             'admin:read',
             'avis:read',
-            'image:read'
+            'image:read',
+            'user:read',
         ]
     )]
     private ?string $pseudo = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $nom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $prenom = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups([
+        'trajet:read',
+        'reservation:read',
+        'historique:read',
+        'profilConducteur:read',
+        'employes:read',
+        'admin:read',
+        'avis:read',
+        'image:read',
+        'user:read',
+    ])]
     private ?string $telephone = null;
 
     #[ORM\Column(length: 100, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $adresse = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['user:read'])]
     private ?string $dateNaissance = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['user:read'])]
     private ?int $credits = null;
 
     /**
      * @var Collection<int, Historique>
      */
-    #[ORM\OneToMany(targetEntity: Historique::class, mappedBy: 'user')]
+    #[ORM\OneToMany(
+        targetEntity: Historique::class,
+        mappedBy: 'user',
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
     private Collection $historiques;
 
     /**
      * @var Collection<int, ProfilConducteur>
      */
-    #[ORM\OneToMany(targetEntity: ProfilConducteur::class, mappedBy: 'user')]
+    #[ORM\OneToMany(
+        targetEntity: ProfilConducteur::class,
+        mappedBy: 'user',
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
+    #[Groups([
+        'profilConducteur:read',
+        'trajet:read',
+        'reservation:read'
+    ])]
     private Collection $profilConducteurs;
 
     /**
      * @var Collection<int, Avis>
      */
-    #[ORM\OneToMany(targetEntity: Avis::class, mappedBy: 'user')]
+    #[ORM\OneToMany(
+        targetEntity: Avis::class,
+        mappedBy: 'user',
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
     private Collection $avis;
 
     #[ORM\Column]
+    #[Groups(['user:read'])]
     private ?bool $compteSuspendu = null;
 
     /**
@@ -146,9 +203,59 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?bool $isPassagerChauffeur = null;
 
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Reservation::class)]
+    #[ORM\OneToMany(
+        mappedBy: 'user',
+        targetEntity: Reservation::class,
+        orphanRemoval: true,
+        cascade: ['remove']
+    )]
     private Collection $reservations;
 
+    #[ORM\OneToOne(
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
+    private ?Image $image = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
+    private ?bool $accepteFumeur = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
+    private ?bool $accepteAnimaux = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(
+        [
+            'user:read',
+            'trajet:read',
+            'reservation:read'
+        ]
+    )]
+    private ?string $autresPreferences = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $isAdmin = null;
 
     /** @throws \Exception */
     public function __construct()
@@ -443,22 +550,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->avis;
     }
 
-    public function addAvi(Avis $avi): static
+    public function addAvi(Avis $avis): static
     {
-        if (!$this->avis->contains($avi)) {
-            $this->avis->add($avi);
-            $avi->setUser($this);
+        if (!$this->avis->contains($avis)) {
+            $this->avis->add($avis);
+            $avis->setUser($this);
         }
 
         return $this;
     }
 
-    public function removeAvi(Avis $avi): static
+    public function removeAvi(Avis $avis): static
     {
-        if ($this->avis->removeElement($avi)) {
+        if ($this->avis->removeElement($avis)) {
             // set the owning side to null (unless already changed)
-            if ($avi->getUser() === $this) {
-                $avi->setUser(null);
+            if ($avis->getUser() === $this) {
+                $avis->setUser(null);
             }
         }
 
@@ -563,6 +670,70 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $reservation->setUser(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getImage(): ?Image
+    {
+        return $this->image;
+    }
+
+    public function setImage(?Image $image): static
+    {
+        $this->image = $image;
+
+        return $this;
+    }
+
+    public function hasImage(): bool
+    {
+        return $this->image !== null;
+    }
+    public function isAccepteFumeur(): ?bool
+    {
+        return $this->accepteFumeur;
+    }
+
+    public function setAccepteFumeur(bool $accepteFumeur): static
+    {
+        $this->accepteFumeur = $accepteFumeur;
+
+        return $this;
+    }
+
+    public function isAccepteAnimaux(): ?bool
+    {
+        return $this->accepteAnimaux;
+    }
+
+    public function setAccepteAnimaux(bool $accepteAnimaux): static
+    {
+        $this->accepteAnimaux = $accepteAnimaux;
+
+        return $this;
+    }
+
+    public function getAutresPreferences(): ?string
+    {
+        return $this->autresPreferences;
+    }
+
+    public function setAutresPreferences(?string $autresPreferences): static
+    {
+        $this->autresPreferences = $autresPreferences;
+
+        return $this;
+    }
+
+    public function isAdmin(): ?bool
+    {
+        return $this->isAdmin;
+    }
+
+    public function setIsAdmin(?bool $isAdmin): static
+    {
+        $this->isAdmin = $isAdmin;
 
         return $this;
     }
