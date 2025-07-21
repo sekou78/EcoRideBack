@@ -51,4 +51,4 @@
 # Appeler l'API depuis le front
 
     * Installation de Nelmio Cors Bundle si c'est pas fait
-        - $ composer require nelmio/cors-bundle
+        - $ composer require nelmio/cors-bundle.
