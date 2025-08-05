@@ -6,6 +6,7 @@ use App\Entity\ProfilConducteur;
 use App\Entity\Reservation;
 use App\Entity\Trajet;
 use App\Entity\User;
+use App\Repository\ReservationRepository;
 use App\Repository\TrajetRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,7 +30,8 @@ final class TrajetController extends AbstractController
         private SerializerInterface $serializer,
         private UrlGeneratorInterface $urlGenerator,
         private Security $security,
-        private ValidatorInterface $validator
+        private ValidatorInterface $validator,
+        private ReservationRepository $reservationRepository,
     ) {}
 
     #[Route(methods: "POST")]
@@ -424,18 +426,6 @@ final class TrajetController extends AbstractController
                 ['error' => "Le trajet demande $placesTrajet place(s) alors que "
                     . "le véhicule n'en possède que $placesVehicule."],
                 Response::HTTP_BAD_REQUEST
-            );
-        }
-
-        // Vérifier que le véhicule n’est pas déjà affecté à un trajet non terminé
-        $trajetEnCours = $this->manager
-            ->getRepository(Trajet::class)
-            ->findTrajetNonFiniParVehicule($profilConducteur);
-
-        if ($trajetEnCours) {
-            return new JsonResponse(
-                ['error' => 'Ce véhicule est déjà affecté à un trajet en cours.'],
-                Response::HTTP_CONFLICT
             );
         }
 
@@ -869,7 +859,7 @@ final class TrajetController extends AbstractController
                 );
             }
 
-            // On le remplaceuniquement si valide
+            // On le remplace uniquement si valide
             $profilConducteur = $place;
             $trajet->setVehicule($place);
         }
@@ -1485,7 +1475,7 @@ final class TrajetController extends AbstractController
     }
 
     #[Route('/passagers/{id}', name: 'passagers', methods: 'GET')]
-    public function passagers(int $id): JsonResponse
+    public function passagers(int $id, Request $request): JsonResponse
     {
 
         $user = $this->security->getUser();
@@ -1541,12 +1531,228 @@ final class TrajetController extends AbstractController
                     'id' => $passager->getId(),
                     'prenom' => $passager->getPrenom(),
                     'telephone' => $passager->getTelephone(),
+                    'email' => $passager->getEmail(),
+                    'pseudo' => $passager->getPseudo(),
+                    'image' => $passager->getImage()
+                        ? $request->getSchemeAndHttpHost() . $passager->getImage()->getFilePath()
+                        : null,
+                    'roles' => $passager->getRoles(),
+                    'trajetId' => $trajet->getId(),
+                    'reservationId' => $reservation->getId(),
+                    'statutReservation' => $reservation->getStatut(),
                     // autres champs si besoin
                 ];
             }
         }
 
         return new JsonResponse($passagers);
+    }
+
+    #[Route('/passagersFilter/{id}', name: 'Filterpassagers', methods: ['GET'])]
+    public function Filterpassagers(int $id, Request $request): JsonResponse
+    {
+
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non authentifié'
+                ],
+                401
+            );
+        }
+
+        $trajet = $this->repository->find($id);
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                404
+            );
+        }
+
+        // Vérifie que l'utilisateur est le chauffeur de ce trajet
+        $chauffeur = $trajet->getChauffeur();
+        $userId = $user->getId();
+
+        $roles = $user->getRoles();
+        $isChauffeur = $chauffeur && $chauffeur->getId() === $userId;
+        $hasRightRole = in_array(
+            'ROLE_CHAUFFEUR',
+            $roles
+        )
+            ||
+            in_array(
+                'ROLE_PASSAGER_CHAUFFEUR',
+                $roles
+            );
+
+        if (!($isChauffeur && $hasRightRole)) {
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
+        }
+
+        //récupérer les passagers via les réservations
+        // récupérer les passagers via les réservations
+        $passagers = [];
+        foreach ($trajet->getReservations() as $reservation) {
+            // 💡 Ne garder que les réservations EN_ATTENTE ou CONFIRMEE
+            if (!in_array($reservation->getStatut(), ['EN_ATTENTE', 'CONFIRMEE'])) {
+                continue; // on ignore les autres statuts (ex: ANNULEE)
+            }
+
+            $passager = $reservation->getUser();
+
+            // On exclut le chauffeur du trajet
+            if ($passager && $passager->getId() !== $chauffeur->getId()) {
+                $passagers[] = [
+                    'id' => $passager->getId(),
+                    'prenom' => $passager->getPrenom(),
+                    'telephone' => $passager->getTelephone(),
+                    'email' => $passager->getEmail(),
+                    'pseudo' => $passager->getPseudo(),
+                    'image' => $passager->getImage()
+                        ? $request->getSchemeAndHttpHost() . $passager->getImage()->getFilePath()
+                        : null,
+                    'roles' => $passager->getRoles(),
+                    'trajetId' => $trajet->getId(),
+                    'reservationId' => $reservation->getId(),
+                    'statutReservation' => $reservation->getStatut(),
+                    // autres champs si besoin
+                ];
+            }
+        }
+
+
+        return new JsonResponse($passagers);
+    }
+
+    #[Route('/accepter/{trajetId}/passagers/{passagerId}', name: 'accepter_passager', methods: ['POST'])]
+    public function accepterPassager(
+        int $trajetId,
+        int $passagerId
+    ): JsonResponse {
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non authentifié'],
+                401
+            );
+        }
+
+        $trajet = $this->repository->find($trajetId);
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                404
+            );
+        }
+
+        // Vérifie que l'utilisateur est bien le chauffeur du trajet
+        if ($trajet->getChauffeur()->getId() !== $user->getId()) {
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
+        }
+
+        // Recherche de la réservation du passager pour ce trajet
+        $reservation = $this->reservationRepository->findOneBy(
+            [
+                'trajet' => $trajet,
+                'user' => $passagerId,
+            ]
+        );
+
+        if (!$reservation) {
+            return new JsonResponse(
+                ['error' => 'Réservation non trouvée'],
+                404
+            );
+        }
+
+        $reservation->setStatut('CONFIRMEE');
+        $this->manager->flush();
+
+        return new JsonResponse(
+            ['message' => 'Passager accepté par le chauffeur, passager notifié.']
+        );
+    }
+
+    #[Route('/refuser/{trajetId}/passagers/{passagerId}', name: 'refuser_passager', methods: ['POST'])]
+    public function refuserPassager(
+        int $trajetId,
+        int $passagerId
+    ): JsonResponse {
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non authentifié'],
+                401
+            );
+        }
+
+        $trajet = $this->repository->find($trajetId);
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                404
+            );
+        }
+
+        if ($trajet->getChauffeur()->getId() !== $user->getId()) {
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
+        }
+
+        $reservation = $this->reservationRepository->findOneBy(
+            [
+                'trajet' => $trajet,
+                'user' => $passagerId,
+            ]
+        );
+
+        if (!$reservation) {
+            return new JsonResponse(
+                ['error' => 'Réservation non trouvée'],
+                404
+            );
+        }
+
+        $reservation->setStatut('ANNULEE');
+
+        // Libérer la place
+        $trajet->setNombrePlacesDisponible(
+            $trajet->getNombrePlacesDisponible() + 1
+        );
+
+        // Rembourser le passager
+        $prixTrajet = (int) round(
+            floatval($trajet->getPrix())
+        );
+        $passager = $reservation->getUser();
+        $passager->setCredits(
+            $passager->getCredits() + $prixTrajet
+        );
+
+        $reservation->setUpdatedAt(new \DateTimeImmutable());
+
+        $this->manager->flush();
+
+        return new JsonResponse(
+            [
+                'message' => 'Passager refusé, place libérée et crédits remboursés, passager notifié.'
+            ]
+        );
     }
 
     #[Route('/terminee/{id}', name: 'terminee', methods: 'POST')]

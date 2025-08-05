@@ -200,7 +200,9 @@ final class ReservationController extends AbstractController
                 !in_array('ROLE_PASSAGER_CHAUFFEUR', $roles)
             ) {
                 return new JsonResponse(
-                    ['error' => 'Vous n\'êtes pas autorisé à effectuer une réservation.'],
+                    [
+                        'error' => "Verifier que vous avez le rôle 'PASSAGER' ou 'PASSAGER_CHAUFFEUR'."
+                    ],
                     Response::HTTP_FORBIDDEN
                 );
             }
