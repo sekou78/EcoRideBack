@@ -164,6 +164,15 @@ final class ImageController extends AbstractController
             ->files
             ->get('image');
 
+        // AJOUT: Limite taille fichier ( 5Mo) 
+        $maxFileSize = 5 * 1024 * 1024; // 5 Mo en octets
+        if ($uploadedFile && $uploadedFile->getSize() > $maxFileSize) {
+            return new JsonResponse(
+                ['error' => 'La taille du fichier ne doit pas être supérieure à 5MB'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
         // Vérifier l'extension et le type MIME
         $allowedExtensions = [
             'jpg',
@@ -496,6 +505,15 @@ final class ImageController extends AbstractController
         if (!$uploadedFile) {
             return new JsonResponse(
                 ['error' => 'No file uploaded'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // AJOUT: Limite taille fichier ( 5Mo) 
+        $maxFileSize = 5 * 1024 * 1024; // 5 Mo en octets
+        if ($uploadedFile && $uploadedFile->getSize() > $maxFileSize) {
+            return new JsonResponse(
+                ['error' => 'La taille du fichier ne doit pas être supérieure à 5MB'],
                 Response::HTTP_BAD_REQUEST
             );
         }
