@@ -2,8 +2,10 @@
 
 namespace App\Controller;
 
+use App\Entity\Notification;
 use App\Entity\SupportMessage;
 use App\Entity\SupportComment;
+use App\Repository\NotificationRepository;
 use App\Repository\SupportCommentRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,6 +19,7 @@ final class SupportCommentController extends AbstractController
     public function __construct(
         private EntityManagerInterface $manager,
         private SupportCommentRepository $commentRepo,
+        private NotificationRepository $notificationRepo
     ) {}
 
     // Ajouter un commentaire à un message support
@@ -53,6 +56,27 @@ final class SupportCommentController extends AbstractController
         $comment->setCreatedAt(new \DateTimeImmutable());
 
         $this->manager->persist($comment);
+
+        $owner = $message->getUser();
+        $ownerEmail = $owner ? $owner->getEmail() : $message->getEmail();
+
+        if ($owner || $ownerEmail) {
+            $notification = new Notification();
+
+            if ($owner) {
+                $notification->setUser($owner);
+            } else {
+                $notification->setEmail($ownerEmail);
+            }
+
+            $notification->setMessage("Un membre du support a répondu à votre demande.");
+            $notification->setIsRead(false);
+            $notification->setAuthor($this->getUser());
+            $notification->setSupportMessage($message);
+            $notification->setCreatedAt(new \DateTimeImmutable());
+
+            $this->manager->persist($notification);
+        }
         $this->manager->flush();
 
         return new JsonResponse(

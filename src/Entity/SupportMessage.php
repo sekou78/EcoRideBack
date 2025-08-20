@@ -82,6 +82,10 @@ class SupportMessage
     )]
     private Collection $supportComments;
 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?User $user = null;
+
     public function __construct()
     {
         $this->supportComments = new ArrayCollection();
@@ -243,6 +247,17 @@ class SupportMessage
             }
         }
 
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(?User $user): static
+    {
+        $this->user = $user;
         return $this;
     }
 }

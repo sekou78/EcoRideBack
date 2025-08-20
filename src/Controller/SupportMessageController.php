@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Notification;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -12,8 +13,8 @@ use App\Entity\SupportMessage;
 use Doctrine\ORM\EntityManagerInterface;
 
 
-#[Route("api/support", name: "app_api_support_")]
-final class SupportController extends AbstractController
+#[Route("api/supportMessage", name: "app_api_supportMessage_")]
+final class SupportMessageController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $manager,
@@ -23,12 +24,16 @@ final class SupportController extends AbstractController
     #[Route('/send', name: 'send', methods: ['POST'])]
     public function send(Request $request): JsonResponse
     {
+        // récupère l'utilisateur connecté, ou null
+        $user = $this->getUser();
+
         $name = $request->request->get('name');
         $email = $request->request->get('email');
         $subject = $request->request->get('subject');
         $messageContent = $request->request->get('message');
         $file = $request->files->get('file'); // peut être null
 
+        // Validation de base
         if (!$email || !$messageContent) {
             return new JsonResponse(
                 ['error' => 'Email et message sont obligatoires.'],
@@ -36,28 +41,52 @@ final class SupportController extends AbstractController
             );
         }
 
-        $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'docx'];
-        $extension = $file->guessExtension();
-
-        if (!in_array($extension, $allowedExtensions)) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return new JsonResponse(
-                ['error' => 'Type de fichier non autorisé.'],
+                ['error' => 'Email invalide.'],
                 400
             );
         }
 
-        if ($file->getSize() > 5 * 1024 * 1024) {
-            return new JsonResponse(
-                ['error' => 'La taille du fichier ne doit pas dépasser 5 Mo.'],
-                400
-            );
-        }
+        if ($file) {
+            $allowedExtensions = [
+                'pdf',
+                'jpg',
+                'jpeg',
+                'png',
+                'docx',
+                'txt',
+                'gif',
+                'webp',
+                'zip',
+            ];
+            $extension = $file->guessExtension();
 
-        if (!$file->isValid()) {
-            return new JsonResponse(
-                ['error' => 'Fichier invalide.'],
-                400
-            );
+            if (!in_array(
+                $extension,
+                $allowedExtensions
+            )) {
+                return new JsonResponse(
+                    ['error' => 'Type de fichier non autorisé.'],
+                    400
+                );
+            }
+
+            if ($file->getSize() > 5 * 1024 * 1024) {
+                return new JsonResponse(
+                    [
+                        'error' => 'La taille du fichier ne doit pas dépasser 5 Mo.'
+                    ],
+                    400
+                );
+            }
+
+            if (!$file->isValid()) {
+                return new JsonResponse(
+                    ['error' => 'Fichier invalide.'],
+                    400
+                );
+            }
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -100,12 +129,42 @@ final class SupportController extends AbstractController
 
         $supportMessage->setCreatedAt(new \DateTimeImmutable());
 
+        // lie le message à l'utilisateur connecté
+        if ($user) {
+            $supportMessage->setUser($user);
+        }
+
         $this->manager->persist($supportMessage);
+
+        $user = $this->getUser();
+
+        if ($user) {
+            // Notification pour utilisateur connecté
+            $notification = new Notification();
+            $notification->setUser($user);
+            $notification->setMessage("Votre demande a bien été reçue.");
+            $notification->setIsRead(false);
+            $notification->setCreatedAt(new \DateTimeImmutable());
+            $notification->setSupportMessage($supportMessage);
+
+            $this->manager->persist($notification);
+        } else {
+            // Notification pour utilisateur non connecté → stocke l'email
+            $notification = new Notification();
+            $notification->setEmail($email); // ici l’email de l’anonyme
+            $notification->setMessage("Votre demande a bien été reçue.");
+            $notification->setIsRead(false);
+            $notification->setCreatedAt(new \DateTimeImmutable());
+            $notification->setSupportMessage($supportMessage);
+
+            $this->manager->persist($notification);
+        }
         $this->manager->flush();
 
-        // Construction du mail
+        // Construction du mail vers support
         $emailObj = (new Email())
-            ->from($email)
+            ->from('ecoride_studi@dinga223.fr')
+            ->replyTo($email)
             ->to('ecoride_studi@dinga223.fr')
             ->subject('[Support] ' . ($subject ?? 'Sans objet'))
             ->text(
@@ -114,13 +173,22 @@ final class SupportController extends AbstractController
                     $messageContent
             );
 
-        // Si fichier attaché, on l'ajoute
         if ($filename) {
-            $path = $uploadsDir . '/' . $filename;
-            $emailObj->attachFromPath($path);
+            $emailObj->attachFromPath($uploadsDir . '/' . $filename);
         }
 
         $this->mailer->send($emailObj);
+
+        // Si non connecté → mail de confirmation au user
+        if (!$user) {
+            $confirmationEmail = (new Email())
+                ->from('ecoride_studi@dinga223.fr')
+                ->to($email)
+                ->subject('[Support] Confirmation de réception')
+                ->text("Bonjour " . ($name ?? 'Utilisateur') . ",\n\nVotre message a bien été reçu. Nous vous répondrons dès que possible.");
+
+            $this->mailer->send($confirmationEmail);
+        }
 
         return new JsonResponse(
             ['success' => true]
