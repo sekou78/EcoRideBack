@@ -80,6 +80,7 @@ class SupportMessage
         cascade: ['persist', 'remove'],
         orphanRemoval: true
     )]
+    #[ORM\OrderBy(['createdAt' => 'DESC'])]
     private Collection $supportComments;
 
     #[ORM\ManyToOne(targetEntity: User::class)]

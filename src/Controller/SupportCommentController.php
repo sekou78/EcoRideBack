@@ -50,8 +50,12 @@ final class SupportCommentController extends AbstractController
         $comment->setContent($commentText);
 
         $user = $this->getUser();
-        $authorName = $user ? $user->getUserIdentifier() : 'Anonyme';
-        $comment->setAuthorName($authorName);
+        if ($user) {
+            $comment->setAuthor($user);
+            $comment->setAuthorName($user->getUserIdentifier());
+        } else {
+            $comment->setAuthorName('Anonyme');
+        }
 
         $comment->setCreatedAt(new \DateTimeImmutable());
 

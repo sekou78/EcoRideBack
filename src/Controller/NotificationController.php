@@ -127,4 +127,53 @@ final class NotificationController extends AbstractController
             ]
         );
     }
+
+    #[Route('/{id}', name: 'show', methods: ['GET'])]
+    public function show(Notification $notification): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non authentifié'],
+                401
+            );
+        }
+
+        // Autorisation basique
+        if (
+            !in_array('ROLE_ADMIN', $user->getRoles()) &&
+            !in_array('ROLE_EMPLOYE', $user->getRoles()) &&
+            $notification->getUser() !== $user &&
+            $notification->getEmail() !== $user->getEmail()
+        ) {
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
+        }
+
+        $commentsData = [];
+        if ($notification->getSupportMessage()) {
+            foreach (
+                $notification->getSupportMessage()
+                    ->getSupportComments() as $comment
+            ) {
+                $commentsData[] = [
+                    'id'        => $comment->getId(),
+                    'content'   => $comment->getContent(),
+                    'author'    => $comment->getAuthor()?->getPseudo()
+                        ?? $comment->getAuthor()?->getEmail(),
+                    'createdAt' => $comment->getCreatedAt()->format('d-m-Y H:i'),
+                ];
+            }
+        }
+
+        $data = [
+            'id' => $notification->getId(),
+            'supportMessageId' => $notification->getSupportMessage()?->getId(),
+            'comments' => $commentsData,
+        ];
+
+        return new JsonResponse($data);
+    }
 }
