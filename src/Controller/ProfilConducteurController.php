@@ -28,11 +28,12 @@ final class ProfilConducteurController extends AbstractController
         private Security $security
     ) {}
 
-    #[Route(methods: "POST")]
+    #[Route(methods: ["POST"])]
     #[OA\Post(
         path: "/api/profilConducteur",
         summary: "Créer un profil de conducteur",
         description: "Permet à un 'chauffeur' ou 'passager_chauffeur' de créer son profil de conducteur.",
+        tags: ["Immatriculation Vehicules"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Données du profil conducteur à créer",
@@ -258,11 +259,12 @@ final class ProfilConducteurController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "show", methods: "GET")]
+    #[Route("/{id}", name: "show", methods: ["GET"])]
     #[OA\Get(
         path: "/api/profilConducteur/{id}",
         summary: "Afficher un profil de conducteur",
         description: "Cette route permet d'afficher les détails d'un profil conducteur spécifique.",
+        tags: ["Immatriculation Vehicules"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -415,11 +417,12 @@ final class ProfilConducteurController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "edit", methods: "PUT")]
+    #[Route("/{id}", name: "edit", methods: ["PUT"])]
     #[OA\Put(
         path: "/api/profilConducteur/{id}",
         summary: "Modifier un profil conducteur",
         description: "Permet à un utilisateur de modifier son profil de conducteur.",
+        tags: ["Immatriculation Vehicules"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -660,11 +663,12 @@ final class ProfilConducteurController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[Route("/{id}", name: "delete", methods: ["DELETE"])]
     #[OA\Delete(
         path: "/api/profilConducteur/{id}",
         summary: "Supprimer son profil conducteur",
         description: "Permet à un utilisateur de supprimer son propre profil de conducteur.",
+        tags: ["Immatriculation Vehicules"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -803,11 +807,12 @@ final class ProfilConducteurController extends AbstractController
         );
     }
 
-    #[Route("/", name: "index", methods: "GET")]
+    #[Route("/", name: "index", methods: ["GET"])]
     #[OA\Get(
         path: '/api/profilConducteur/',
         summary: 'Liste vehicule de l’utilisateur connecté',
         description: 'Retourne tous les vehicules liés à l’utilisateur connecté',
+        tags: ["Immatriculation Vehicules"],
         responses: [
             new OA\Response(
                 response: 200,

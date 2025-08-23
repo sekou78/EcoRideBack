@@ -31,11 +31,12 @@ final class HistoriqueController extends AbstractController
         private Security $security
     ) {}
 
-    #[Route(methods: 'POST')]
+    #[Route(methods: ['POST'])]
     #[OA\Post(
         path: "/api/historique",
         summary: "Créer un historique pour un trajet",
         description: "Créer un historique pour un trajet.",
+        tags: ["Historique"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Identifiant du trajet concerné",
@@ -224,11 +225,12 @@ final class HistoriqueController extends AbstractController
         );
     }
 
-    #[Route('/filter', methods: 'GET')]
+    #[Route('/filter', methods: ['GET'])]
     #[OA\Get(
         path: "/api/historique/filter",
         summary: "Filtrer les historiques de l'utilisateur connecté",
         description: "Retourne les historiques selon les critères de statut et/ou d'identifiant de trajet",
+        tags: ["Historique"],
         parameters: [
             new OA\Parameter(
                 name: "statut",
@@ -399,11 +401,12 @@ final class HistoriqueController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[Route("/{id}", name: "delete", methods: ["DELETE"])]
     #[OA\Delete(
         path: "/api/historique/{id}",
         summary: "Supprimer un historique",
         description: "Supprime un historique par l'administrateur.",
+        tags: ["Historique"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -466,11 +469,12 @@ final class HistoriqueController extends AbstractController
         );
     }
 
-    #[Route('/cancel', methods: 'POST')]
+    #[Route('/cancel', methods: ['POST'])]
     #[OA\Post(
         path: "/api/historique/cancel",
         summary: "Annulation d'un trajet",
         description: "Permet à un utilisateur d'annuler un trajet.",
+        tags: ["Historique"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "ID du trajet à annuler",
@@ -681,7 +685,96 @@ final class HistoriqueController extends AbstractController
         );
     }
 
-    #[Route('/', name: 'index', methods: 'GET')]
+    #[Route('/', name: 'index', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/historique/",
+        summary: "Récupérer les trajets liés à l’utilisateur connecté",
+        description: "Retourne la liste des trajets où l’utilisateur est 
+                        chauffeur ou passager, triés par date décroissante.",
+        tags: ["Historique"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste des trajets de l’utilisateur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "items",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 12
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseDepart",
+                                            type: "string",
+                                            example: "10 rue de Paris, Lyon"
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseArrivee",
+                                            type: "string",
+                                            example: "25 avenue de Marseille, Nice"
+                                        ),
+                                        new OA\Property(
+                                            property: "prix",
+                                            type: "number",
+                                            format: "float",
+                                            example: 35.50
+                                        ),
+                                        new OA\Property(
+                                            property: "dateDepart",
+                                            type: "string",
+                                            example: "22-08-2025"
+                                        ),
+                                        new OA\Property(
+                                            property: "statut",
+                                            type: "string",
+                                            example: "Confirmé"
+                                        ),
+                                        new OA\Property(
+                                            property: "estChauffeur",
+                                            type: "boolean",
+                                            example: true
+                                        ),
+                                        new OA\Property(
+                                            property: "statutReservation",
+                                            type: "string",
+                                            nullable: true,
+                                            example: "Acceptée"
+                                        )
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non connecté",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Utilisateur non connecté."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function index(): JsonResponse
     {
         $user = $this->getUser();

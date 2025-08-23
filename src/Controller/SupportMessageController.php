@@ -11,6 +11,7 @@ use Symfony\Component\Mime\Email;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\SupportMessage;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 
 
 #[Route("api/supportMessage", name: "app_api_supportMessage_")]
@@ -22,6 +23,94 @@ final class SupportMessageController extends AbstractController
     ) {}
 
     #[Route('/send', name: 'send', methods: ['POST'])]
+    #[OA\Post(
+        path: "/api/supportMessage/send",
+        summary: "Envoyer un message au support",
+        description: "Permet à un utilisateur connecté ou non 
+                        d’envoyer un message au support avec un 
+                        fichier attaché optionnel. Une notification 
+                        est créée pour le destinataire et un email est envoyé.",
+        tags: ["Contact Support"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Données du message et fichier éventuel",
+            content: new OA\MediaType(
+                mediaType: "multipart/form-data",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: [
+                        "email",
+                        "message"
+                    ],
+                    properties: [
+                        new OA\Property(
+                            property: "name",
+                            type: "string",
+                            example: "Jean Dupont"
+                        ),
+                        new OA\Property(
+                            property: "email",
+                            type: "string",
+                            format: "email",
+                            example: "jean.dupont@mail.com"
+                        ),
+                        new OA\Property(
+                            property: "subject",
+                            type: "string",
+                            example: "Problème de réservation"
+                        ),
+                        new OA\Property(
+                            property: "message",
+                            type: "string",
+                            example: "Bonjour, je rencontre un problème avec ma réservation."
+                        ),
+                        new OA\Property(
+                            property: "file",
+                            type: "string",
+                            format: "binary",
+                            description: "Fichier attaché optionnel (pdf, jpg, png, docx, txt, gif, webp, zip)"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Message envoyé avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "success",
+                                type: "boolean",
+                                example: true
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Erreur de validation (email ou message manquant, fichier invalide)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Email et message sont obligatoires."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function send(Request $request): JsonResponse
     {
         // récupère l'utilisateur connecté, ou null
@@ -196,6 +285,100 @@ final class SupportMessageController extends AbstractController
     }
 
     #[Route('/showMessages', name: 'list_messages', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/supportMessage/showMessages",
+        summary: "Lister tous les messages support",
+        description: "Retourne tous les messages de support 
+                        pour les utilisateurs ADMIN ou EMPLOYE, 
+                        triés par date de création descendante.",
+        tags: ["Contact Support"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste des messages support",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "array",
+                        items: new OA\Items(
+                            type: "object",
+                            properties: [
+                                new OA\Property(
+                                    property: "id",
+                                    type: "integer",
+                                    example: 12
+                                ),
+                                new OA\Property(
+                                    property: "name",
+                                    type: "string",
+                                    example: "Jean Dupont"
+                                ),
+                                new OA\Property(
+                                    property: "email",
+                                    type: "string",
+                                    example: "jean.dupont@mail.com"
+                                ),
+                                new OA\Property(
+                                    property: "subject",
+                                    type: "string",
+                                    example: "Problème de réservation"
+                                ),
+                                new OA\Property(
+                                    property: "message",
+                                    type: "string",
+                                    example: "Je rencontre un problème avec ma réservation."
+                                ),
+                                new OA\Property(
+                                    property: "filename",
+                                    type: "string",
+                                    nullable: true,
+                                    example: "document.pdf"
+                                ),
+                                new OA\Property(
+                                    property: "createdAt",
+                                    type: "string",
+                                    example: "23-08-2025 15:42"
+                                ),
+                                new OA\Property(
+                                    property: "status",
+                                    type: "string",
+                                    example: "new"
+                                ),
+                                new OA\Property(
+                                    property: "priority",
+                                    type: "string",
+                                    example: "normal"
+                                ),
+                                new OA\Property(
+                                    property: "assignedTo",
+                                    type: "string",
+                                    nullable: true,
+                                    example: "Admin1"
+                                )
+                            ]
+                        )
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé (non ADMIN / EMPLOYE)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès refusé."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function list_messages(): JsonResponse
     {
         if (!$this->isGranted('ROLE_ADMIN') && !$this->isGranted('ROLE_EMPLOYE')) {
@@ -236,6 +419,101 @@ final class SupportMessageController extends AbstractController
 
     // Lister les messages support filtrés par statut
     #[Route('/showMessagesFilter', name: 'list_messages_filter', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/supportMessage/showMessagesFilter",
+        summary: "Lister les messages support sauf les résolus",
+        description: "Retourne tous les messages support dont 
+                        le statut n'est pas 'resolved' pour les 
+                        utilisateurs ADMIN ou EMPLOYE, triés par 
+                        date de création descendante.",
+        tags: ["Contact Support"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste des messages support filtrés",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "array",
+                        items: new OA\Items(
+                            type: "object",
+                            properties: [
+                                new OA\Property(
+                                    property: "id",
+                                    type: "integer",
+                                    example: 12
+                                ),
+                                new OA\Property(
+                                    property: "name",
+                                    type: "string",
+                                    example: "Jean Dupont"
+                                ),
+                                new OA\Property(
+                                    property: "email",
+                                    type: "string",
+                                    example: "jean.dupont@mail.com"
+                                ),
+                                new OA\Property(
+                                    property: "subject",
+                                    type: "string",
+                                    example: "Problème de réservation"
+                                ),
+                                new OA\Property(
+                                    property: "message",
+                                    type: "string",
+                                    example: "Je rencontre un problème avec ma réservation."
+                                ),
+                                new OA\Property(
+                                    property: "filename",
+                                    type: "string",
+                                    nullable: true,
+                                    example: "document.pdf"
+                                ),
+                                new OA\Property(
+                                    property: "createdAt",
+                                    type: "string",
+                                    example: "23-08-2025 15:42"
+                                ),
+                                new OA\Property(
+                                    property: "status",
+                                    type: "string",
+                                    example: "new"
+                                ),
+                                new OA\Property(
+                                    property: "priority",
+                                    type: "string",
+                                    example: "normal"
+                                ),
+                                new OA\Property(
+                                    property: "assignedTo",
+                                    type: "string",
+                                    nullable: true,
+                                    example: "Admin1"
+                                )
+                            ]
+                        )
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé (non ADMIN / EMPLOYE)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès refusé."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function list_messages_filter(): JsonResponse
     {
         if (!$this->isGranted('ROLE_ADMIN') && !$this->isGranted('ROLE_EMPLOYE')) {
@@ -274,8 +552,99 @@ final class SupportMessageController extends AbstractController
         return new JsonResponse($data);
     }
 
-
     #[Route('/contact/status/{id}', name: 'update_status', methods: ['PUT'])]
+    #[OA\Put(
+        path: "/api/supportMessage/contact/status/{id}",
+        summary: "Mettre à jour le statut d'un message support",
+        description: "Permet à un utilisateur ADMIN ou EMPLOYE 
+                        de changer le statut d'un message support.",
+        tags: ["Contact Support"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "ID du message support",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 5
+                )
+            )
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Nouveau statut du message",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: ["status"],
+                    properties: [
+                        new OA\Property(
+                            property: "status",
+                            type: "string",
+                            description: "Nouveau statut du message",
+                            example: "read",
+                            enum: ["new", "read", "resolved"]
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Statut mis à jour avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "success",
+                                type: "boolean",
+                                example: true
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Erreur de validation (statut manquant ou invalide)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Le champ \"status\" est requis."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé (non ADMIN / EMPLOYE)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès refusé."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function updateStatus(
         Request $request,
         SupportMessage $message

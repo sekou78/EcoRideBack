@@ -28,10 +28,12 @@ final class AvisController extends AbstractController
         private Security $security
     ) {}
 
-    #[Route(methods: "POST")]
+    #[Route(methods: ["POST"])]
     #[OA\Post(
         path: "/api/avis",
         summary: "Créer un avis pour une réservation",
+        description: "Permet à un passager ou passager_chauffeur de créer un avis pour une réservation terminée.",
+        tags: ["Avis"],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
@@ -251,11 +253,12 @@ final class AvisController extends AbstractController
         );
     }
 
-    #[Route("/", name: "show", methods: "GET")]
+    #[Route("/", name: "show", methods: ["GET"])]
     #[OA\Get(
         path: "/api/avis/",
         summary: "Lister tous les avis",
         description: "Accessible uniquement aux employées",
+        tags: ["Avis"],
         responses: [
             new OA\Response(
                 response: 200,
@@ -360,10 +363,12 @@ final class AvisController extends AbstractController
         );
     }
 
-    #[Route("/avisVisible", name: "avisVisible", methods: "GET")]
+    #[Route("/avisVisible", name: "avisVisible", methods: ["GET"])]
     #[OA\Get(
         path: '/api/avis/avisVisible',
         summary: 'Liste des avis visibles',
+        description: 'Récupère la liste des avis marqués comme visibles.',
+        tags: ['Avis'],
         responses: [
             new OA\Response(
                 response: 200,
@@ -457,12 +462,13 @@ final class AvisController extends AbstractController
     #[Route(
         '/employee/validate-avis/{id}',
         name: 'employee_validate_avis',
-        methods: 'PUT'
+        methods: ['PUT']
     )]
     #[OA\Put(
         path: "/api/avis/employee/validate-avis/{id}",
         summary: "Valider un avis client",
         description: "Validation d'un avis client par un employé.",
+        tags: ["Avis"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -605,12 +611,13 @@ final class AvisController extends AbstractController
     #[Route(
         '/employee/refuse-avis/{id}',
         name: 'employee_refuse_avis',
-        methods: 'PUT'
+        methods: ['PUT']
     )]
     #[OA\Put(
         path: "/api/avis/employee/refuse-avis/{id}",
         summary: "Refuser un avis client",
         description: "Refus de l'avis client par un employé.",
+        tags: ["Avis"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -749,11 +756,12 @@ final class AvisController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[Route("/{id}", name: "delete", methods: ["DELETE"])]
     #[OA\Delete(
         path: "/api/avis/{id}",
         summary: "Supprimer un avis",
         description: "Permet à un employé de supprimer un avis.",
+        tags: ["Avis"],
         parameters: [
             new OA\Parameter(
                 name: "id",
