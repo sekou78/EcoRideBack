@@ -257,6 +257,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?bool $isAdmin = null;
 
+    /**
+     * @var Collection<int, Notification>
+     */
+    #[ORM\OneToMany(targetEntity: Notification::class, mappedBy: 'user')]
+    private Collection $notifications;
+
     /** @throws \Exception */
     public function __construct()
     {
@@ -266,6 +272,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->avis = new ArrayCollection();
         $this->trajet = new ArrayCollection();
         $this->reservations = new ArrayCollection();
+        $this->notifications = new ArrayCollection();
     }
 
     private function updateRoleBooleans(): void
@@ -734,6 +741,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setIsAdmin(?bool $isAdmin): static
     {
         $this->isAdmin = $isAdmin;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Notification>
+     */
+    public function getNotifications(): Collection
+    {
+        return $this->notifications;
+    }
+
+    public function addNotification(Notification $notification): static
+    {
+        if (!$this->notifications->contains($notification)) {
+            $this->notifications->add($notification);
+            $notification->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeNotification(Notification $notification): static
+    {
+        if ($this->notifications->removeElement($notification)) {
+            // set the owning side to null (unless already changed)
+            if ($notification->getUser() === $this) {
+                $notification->setUser(null);
+            }
+        }
 
         return $this;
     }

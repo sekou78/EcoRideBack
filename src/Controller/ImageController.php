@@ -41,10 +41,14 @@ final class ImageController extends AbstractController
     }
 
     // Ajouter une image
-    #[Route(methods: 'POST')]
+    #[Route(methods: ['POST'])]
     #[OA\Post(
         path: "/api/image",
         summary: "Ajouter une image.",
+        description: "Permet à un utilisateur connecté d'ajouter une image. 
+                        L'utilisateur ne peut avoir qu'une seule image associée. 
+                        Le fichier peut être envoyé via multipart/form-data ou en JSON base64.",
+        tags: ["Image"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Image à envoyer via multipart/form-data OU JSON base64",
@@ -164,6 +168,15 @@ final class ImageController extends AbstractController
             ->files
             ->get('image');
 
+        // AJOUT: Limite taille fichier ( 5Mo) 
+        $maxFileSize = 5 * 1024 * 1024; // 5 Mo en octets
+        if ($uploadedFile && $uploadedFile->getSize() > $maxFileSize) {
+            return new JsonResponse(
+                ['error' => 'La taille du fichier ne doit pas être supérieure à 5MB'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
         // Vérifier l'extension et le type MIME
         $allowedExtensions = [
             'jpg',
@@ -282,10 +295,14 @@ final class ImageController extends AbstractController
     }
 
     //Afficher une image
-    #[Route('/{id}', name: 'show', methods: 'GET')]
+    #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[OA\Get(
         path: "/api/image/{id}",
         summary: "Afficher l'image de l'utilisateur connecté",
+        description: "Permet d'afficher l'image d'un utilisateur par son ID. 
+                        Accessible uniquement si l'utilisateur est authentifié 
+                        et propriétaire de l'image.",
+        tags: ["Image"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -323,14 +340,6 @@ final class ImageController extends AbstractController
     // #[IsGranted('ROLE_USER')]
     public function show(int $id): BinaryFileResponse
     {
-        // // Récupérer l'utilisateur connecté
-        // $user = $this->security->getUser();
-        // if (!$user instanceof User) {
-        //     return new BinaryFileResponse(
-        //         Response::HTTP_UNAUTHORIZED
-        //     );
-        // }
-
         // Récupération de l'image en base de données
         $image = $this->repository->findOneBy(['id' => $id]);
 
@@ -338,13 +347,6 @@ final class ImageController extends AbstractController
         if (!$image) {
             throw $this->createNotFoundException('Image non trouvée');
         }
-
-        // // Vérifier que l'utilisateur connecté est bien celui lié à l'image
-        // if ($user->getImage()?->getId() !== $image->getId()) {
-        //     throw $this->createAccessDeniedException(
-        //         "Vous n'avez pas accès à cette image."
-        //     );
-        // }
 
         // Chemin absolu du fichier sur le serveur
         $imagePath = $this
@@ -367,11 +369,12 @@ final class ImageController extends AbstractController
     }
 
     //Modifier une image
-    #[Route('/{id}', name: 'edit', methods: 'POST')]
+    #[Route('/{id}', name: 'edit', methods: ['POST'])]
     #[OA\Post(
         path: '/api/image/{id}',
         summary: 'Modifier une image existante',
         description: 'Permet à un utilisateur connecté de modifier son image.',
+        tags: ['Image'],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -496,6 +499,15 @@ final class ImageController extends AbstractController
         if (!$uploadedFile) {
             return new JsonResponse(
                 ['error' => 'No file uploaded'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // AJOUT: Limite taille fichier ( 5Mo) 
+        $maxFileSize = 5 * 1024 * 1024; // 5 Mo en octets
+        if ($uploadedFile && $uploadedFile->getSize() > $maxFileSize) {
+            return new JsonResponse(
+                ['error' => 'La taille du fichier ne doit pas être supérieure à 5MB'],
                 Response::HTTP_BAD_REQUEST
             );
         }
@@ -628,10 +640,12 @@ final class ImageController extends AbstractController
     }
 
     //Supprimer une image
-    #[Route('/{id}', name: 'delete', methods: 'DELETE')]
+    #[Route('/{id}', name: 'delete', methods: ['DELETE'])]
     #[OA\Delete(
         path: "/api/image/{id}",
         summary: "Supprimer son image",
+        description: "Permet à un utilisateur connecté de supprimer son image.",
+        tags: ["Image"],
         parameters: [
             new OA\Parameter(
                 name: "id",

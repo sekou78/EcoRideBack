@@ -36,10 +36,12 @@ final class SecurityController extends AbstractController
         private Security $security,
         private KernelInterface $kernel
     ) {}
-    #[Route('/registration', name: 'registration', methods: 'POST')]
+    #[Route('/registration', name: 'registration', methods: ['POST'])]
     #[OA\Post(
         path: "/api/registration",
         summary: "Inscription d'un utilisateur",
+        description: "Permet à un utilisateur de s'inscrire",
+        tags: ["User"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Utilisateur à inscrire",
@@ -227,10 +229,12 @@ final class SecurityController extends AbstractController
         );
     }
 
-    #[Route('/login', name: 'login', methods: 'POST')]
+    #[Route('/login', name: 'login', methods: ['POST'])]
     #[OA\Post(
         path: "/api/login",
         summary: "Connexion d'un Utilisateur",
+        description: "Permet à un utilisateur authentifié de se connecter",
+        tags: ["User"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Données de l'utilisateur pour se connecter",
@@ -332,10 +336,12 @@ final class SecurityController extends AbstractController
         );
     }
 
-    #[Route('/account/me', name: 'me', methods: 'GET')]
+    #[Route('/account/me', name: 'me', methods: ['GET'])]
     #[OA\Get(
         path: "/api/account/me",
         summary: "Les informations de l'objet User",
+        description: "Permet à un utilisateur connecté de récupérer les informations de son compte.",
+        tags: ["User"],
         responses: [
             new OA\Response(
                 response: 200,
@@ -437,10 +443,12 @@ final class SecurityController extends AbstractController
         );
     }
 
-    #[Route('/account/edit', name: 'edit', methods: 'PUT')]
+    #[Route('/account/edit', name: 'edit', methods: ['PUT'])]
     #[OA\Put(
         path: "/api/account/edit",
         summary: "Modifier son compte",
+        description: "Permet à un utilisateur connecté de modifier son compte.",
+        tags: ["User"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Données à mettre à jour",
@@ -642,11 +650,13 @@ final class SecurityController extends AbstractController
     #[Route(
         '/admin/create-user',
         name: 'admin_create_user',
-        methods: 'POST'
+        methods: ['POST']
     )]
     #[OA\Post(
         path: "/api/admin/create-user",
         summary: "Créer un employé par administrateur",
+
+        tags: ["Admin"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Données de l'utilisateur à créer",
@@ -859,11 +869,13 @@ final class SecurityController extends AbstractController
     #[Route(
         '/admin/droitSuspensionComptes/{id}',
         name: 'admin_droitSuspensionComptes',
-        methods: 'PUT'
+        methods: ['PUT']
     )]
     #[OA\Put(
         path: "/api/admin/droitSuspensionComptes/{id}",
         summary: "Suspendre un compte (admin uniquement)",
+        description: "Permet à un administrateur de suspendre un compte utilisateur.",
+        tags: ["Admin"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -967,7 +979,6 @@ final class SecurityController extends AbstractController
             $session->invalidate();
         }
 
-
         $droit->setUpdatedAt(new DateTimeImmutable());
 
         $this->manager->flush();
@@ -978,19 +989,81 @@ final class SecurityController extends AbstractController
         );
     }
 
-    #[Route('/compte/suspendu', name: 'suspended_account')]
-    public function suspendedAccount(): Response
-    {
-        return new JsonResponse(
-            ['message' => 'Compte suspendu'],
-            Response::HTTP_OK
-        );
-    }
-
     #[Route(
         '/droitsReactiverComptes/{id}',
         name: 'droitsReactiverComptes',
-        methods: 'PUT'
+        methods: ['PUT']
+    )]
+    #[OA\Put(
+        path: "/api/droitsReactiverComptes/{id}",
+        summary: "Réactivation d’un compte utilisateur (admin uniquement)",
+        description: "Permet à un administrateur de réactiver un compte utilisateur précédemment suspendu.",
+        tags: ["Admin"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "ID de l’utilisateur à réactiver",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 1
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Compte réactivé avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Compte reactiver"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Accès réfusé"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Utilisateur introuvable",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "User non trouvé"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
     )]
     #[IsGranted('ROLE_ADMIN')]
     public function droitsReactiverComptes(int $id): JsonResponse
@@ -1029,7 +1102,114 @@ final class SecurityController extends AbstractController
         );
     }
 
-    #[Route('/gestion/employes', name: 'gestionEmployes', methods: 'GET')]
+    #[Route('/gestion/employes', name: 'gestionEmployes', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/gestion/employes",
+        summary: "Lister les employés (ADMIN uniquement)",
+        description: "Lister les employés (ADMIN uniquement)",
+        tags: ["Admin"],
+        parameters: [
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                required: false,
+                description: "Numéro de page pour la pagination",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 1
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste paginée des employés",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "page",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "limit",
+                                type: "integer",
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: "total",
+                                type: "integer",
+                                example: 23
+                            ),
+                            new OA\Property(
+                                property: "totalPages",
+                                type: "integer",
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: "items",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 12
+                                        ),
+                                        new OA\Property(
+                                            property: "email",
+                                            type: "string",
+                                            format: "email",
+                                            example: "employe@mail.fr"
+                                        ),
+                                        new OA\Property(
+                                            property: "pseudo",
+                                            type: "string",
+                                            example: "EmployeX"
+                                        ),
+                                        new OA\Property(
+                                            property: "roles",
+                                            type: "array",
+                                            items: new OA\Items(
+                                                type: "string",
+                                                example: "ROLE_EMPLOYE"
+                                            )
+                                        ),
+                                        new OA\Property(
+                                            property: "createdAt",
+                                            type: "string",
+                                            example: "01/05/2025"
+                                        )
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès refusé."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_ADMIN')]
     public function gestionEmployes(
         Request             $request,
@@ -1083,7 +1263,114 @@ final class SecurityController extends AbstractController
         ]);
     }
 
-    #[Route('/gestion/utilisateurs', name: 'gestionUtilisateurs', methods: 'GET')]
+    #[Route('/gestion/utilisateurs', name: 'gestionUtilisateurs', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/gestion/utilisateurs",
+        summary: "Lister les utilisateurs (hors ADMIN et EMPLOYE) - réservé aux admins",
+        description: "Lister les utilisateurs (hors ADMIN et EMPLOYE) - réservé aux admins",
+        tags: ["Admin"],
+        parameters: [
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                required: false,
+                description: "Numéro de page pour la pagination",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 1
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste paginée des utilisateurs (hors ADMIN et EMPLOYE)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "page",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "limit",
+                                type: "integer",
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: "total",
+                                type: "integer",
+                                example: 42
+                            ),
+                            new OA\Property(
+                                property: "totalPages",
+                                type: "integer",
+                                example: 9
+                            ),
+                            new OA\Property(
+                                property: "items",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 15
+                                        ),
+                                        new OA\Property(
+                                            property: "email",
+                                            type: "string",
+                                            format: "email",
+                                            example: "user@mail.fr"
+                                        ),
+                                        new OA\Property(
+                                            property: "pseudo",
+                                            type: "string",
+                                            example: "User123"
+                                        ),
+                                        new OA\Property(
+                                            property: "roles",
+                                            type: "array",
+                                            items: new OA\Items(
+                                                type: "string",
+                                                example: "ROLE_USER"
+                                            )
+                                        ),
+                                        new OA\Property(
+                                            property: "createdAt",
+                                            type: "string",
+                                            example: "01/06/2025"
+                                        )
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès refusé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès refusé."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_ADMIN')]
     public function gestionUtilisateurs(
         Request $request,
@@ -1139,7 +1426,102 @@ final class SecurityController extends AbstractController
         ]);
     }
 
-    #[Route('/deleteAccount/{id}', name: 'deleteAccount', methods: 'DELETE')]
+    #[Route('/deleteAccount/{id}', name: 'deleteAccount', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: "/api/deleteAccount/{id}",
+        summary: "Supprimer un compte utilisateur",
+        description: "Permet à un utilisateur de supprimer son propre compte 
+                    ou à l'admin de supprimer un compte utilisateur.",
+        tags: ["User"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "Id de l’utilisateur à supprimer",
+                schema: new OA\Schema(
+                    type: "string",
+                    example: "me"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Compte supprimé avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Compte supprimé avec succès."
+                            ),
+                            new OA\Property(
+                                property: "selfDelete",
+                                type: "boolean",
+                                description: "Indique si l’utilisateur a supprimé son propre compte",
+                                example: true
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non connecté",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non connecté"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Suppression interdite (autorisation insuffisante ou compte ADMIN)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Suppression interdite"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Utilisateur introuvable",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur introuvable"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function deleteAccount(
         string $id,
         TokenStorageInterface $tokenStorage,
@@ -1201,7 +1583,95 @@ final class SecurityController extends AbstractController
         );
     }
 
-    #[Route('/changePassword', name: 'change_password', methods: 'POST')]
+    #[Route('/changePassword', name: 'change_password', methods: ['POST'])]
+    #[OA\Post(
+        path: "/api/changePassword",
+        summary: "Changer le mot de passe de l’utilisateur connecté",
+        description: "Permet à un utilisateur authentifié de changer 
+                        son mot de passe en fournissant l'ancien et le nouveau.",
+        tags: ["User"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: "Ancien et nouveau mot de passe",
+            content: new OA\MediaType(
+                mediaType: "application/json",
+                schema: new OA\Schema(
+                    type: "object",
+                    required: [
+                        "oldPassword",
+                        "newPassword"
+                    ],
+                    properties: [
+                        new OA\Property(
+                            property: "oldPassword",
+                            type: "string",
+                            format: "password",
+                            example: "AncienPass123$"
+                        ),
+                        new OA\Property(
+                            property: "newPassword",
+                            type: "string",
+                            format: "password",
+                            example: "NouveauPass456$"
+                        )
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Mot de passe modifié avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Mot de passe modifié avec succès"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Champs requis manquants",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Champs requis manquants"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié ou ancien mot de passe incorrect",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Ancien mot de passe incorrect"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function changePassword(Request $request): JsonResponse
     {
         // Récupérer l'utilisateur authentifié

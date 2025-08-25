@@ -6,6 +6,7 @@ use App\Entity\ProfilConducteur;
 use App\Entity\Reservation;
 use App\Entity\Trajet;
 use App\Entity\User;
+use App\Repository\ReservationRepository;
 use App\Repository\TrajetRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,14 +30,16 @@ final class TrajetController extends AbstractController
         private SerializerInterface $serializer,
         private UrlGeneratorInterface $urlGenerator,
         private Security $security,
-        private ValidatorInterface $validator
+        private ValidatorInterface $validator,
+        private ReservationRepository $reservationRepository,
     ) {}
 
-    #[Route(methods: "POST")]
+    #[Route(methods: ["POST"])]
     #[OA\Post(
         path: '/api/trajet',
         summary: 'Créer un nouveau trajet',
         description: 'Permet à un CHAUFFEUR ou PASSAGER_CHAUFFEUR de créer un nouveau trajet',
+        tags: ["Trajets"],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
@@ -427,18 +430,6 @@ final class TrajetController extends AbstractController
             );
         }
 
-        // Vérifier que le véhicule n’est pas déjà affecté à un trajet non terminé
-        $trajetEnCours = $this->manager
-            ->getRepository(Trajet::class)
-            ->findTrajetNonFiniParVehicule($profilConducteur);
-
-        if ($trajetEnCours) {
-            return new JsonResponse(
-                ['error' => 'Ce véhicule est déjà affecté à un trajet en cours.'],
-                Response::HTTP_CONFLICT
-            );
-        }
-
         // Affecter le statut "en attente" au trajet
         $trajet->setStatut('EN_ATTENTE');
 
@@ -470,11 +461,12 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "show", methods: "GET")]
+    #[Route("/{id}", name: "show", methods: ["GET"])]
     #[OA\Get(
         path: '/api/trajet/{id}',
         summary: 'Afficher un trajet spécifique',
         description: 'Récupère les détails d’un trajet via son ID.',
+        tags: ["Trajets"],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -607,11 +599,12 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "edit", methods: "PUT")]
+    #[Route("/{id}", name: "edit", methods: ["PUT"])]
     #[OA\Put(
         path: '/api/trajet/{id}',
         summary: 'Modifier un trajet',
         description: 'Permet à un chauffeur ou passager_chauffeur authentifié de modifier son trajet.',
+        tags: ["Trajets"],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -869,7 +862,7 @@ final class TrajetController extends AbstractController
                 );
             }
 
-            // On le remplaceuniquement si valide
+            // On le remplace uniquement si valide
             $profilConducteur = $place;
             $trajet->setVehicule($place);
         }
@@ -1021,11 +1014,12 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[Route("/{id}", name: "delete", methods: ["DELETE"])]
     #[OA\Delete(
         path: '/api/trajet/{id}',
         summary: 'Supprimer un trajet',
         description: 'Supprimer un trajet si le trajet est à l’utilisateur connecté.',
+        tags: ["Trajets"],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -1119,7 +1113,208 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route("/api/listeTrajets", name: "list", methods: "GET")]
+    #[Route("/api/listeTrajets", name: "list", methods: ["GET"])]
+    #[OA\Get(
+        path: "/api/trajet/api/listeTrajets",
+        summary: "Liste des trajets avec filtres et pagination",
+        description: "Retourne les trajets disponibles avec filtres 
+                        sur adresse de départ, adresse d'arrivée et date 
+                        de départ. Tri personnalisé et pagination appliqués.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "adresseDepart",
+                in: "query",
+                description: "Filtrer les trajets par adresse de départ",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    example: "Paris"
+                )
+            ),
+            new OA\Parameter(
+                name: "adresseArrivee",
+                in: "query",
+                description: "Filtrer les trajets par adresse d'arrivée",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    example: "Lyon"
+                )
+            ),
+            new OA\Parameter(
+                name: "dateDepart",
+                in: "query",
+                description: "Filtrer les trajets par date de départ 
+                                (formats acceptés : Y-m-d, d/m/Y, d-m-Y, m/d/Y)",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    example: "23-08-2025"
+                )
+            ),
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                description: "Numéro de page pour la pagination",
+                required: false,
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 1
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste paginée des trajets",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "currentPage",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "totalItems",
+                                type: "integer",
+                                example: 42
+                            ),
+                            new OA\Property(
+                                property: "itemsPerPage",
+                                type: "integer",
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: "totalPages",
+                                type: "integer",
+                                example: 9
+                            ),
+                            new OA\Property(
+                                property: "items",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 15
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseDepart",
+                                            type: "string",
+                                            example: "Paris"
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseArrivee",
+                                            type: "string",
+                                            example: "Lyon"
+                                        ),
+                                        new OA\Property(
+                                            property: "placesDisponibles",
+                                            type: "integer",
+                                            example: 3
+                                        ),
+                                        new OA\Property(
+                                            property: "prix",
+                                            type: "number",
+                                            format: "float",
+                                            example: 45.5
+                                        ),
+                                        new OA\Property(
+                                            property: "dateDepart",
+                                            type: "string",
+                                            example: "23-08-2025"
+                                        ),
+                                        new OA\Property(
+                                            property: "heureDepart",
+                                            type: "string",
+                                            example: "08:30"
+                                        ),
+                                        new OA\Property(
+                                            property: "dateArrivee",
+                                            type: "string",
+                                            example: "23-08-2025"
+                                        ),
+                                        new OA\Property(
+                                            property: "dureeVoyage",
+                                            type: "string",
+                                            example: "02:30"
+                                        ),
+                                        new OA\Property(
+                                            property: "peage",
+                                            type: "string",
+                                            example: "oui"
+                                        ),
+                                        new OA\Property(
+                                            property: "estEcologique",
+                                            type: "string",
+                                            example: "non"
+                                        ),
+                                        new OA\Property(
+                                            property: "chauffeur",
+                                            type: "string",
+                                            example: "Dinga223"
+                                        ),
+                                        new OA\Property(
+                                            property: "avisChauffeur",
+                                            type: "array",
+                                            items: new OA\Items(
+                                                type: "object",
+                                                properties: [
+                                                    new OA\Property(
+                                                        property: "id",
+                                                        type: "integer",
+                                                        example: 7
+                                                    ),
+                                                    new OA\Property(
+                                                        property: "note",
+                                                        type: "integer",
+                                                        example: 5
+                                                    ),
+                                                    new OA\Property(
+                                                        property: "commentaire",
+                                                        type: "string",
+                                                        example: "Parfait !"
+                                                    )
+                                                ]
+                                            )
+                                        ),
+                                        new OA\Property(
+                                            property: "moyenneNoteChauffeur",
+                                            type: "number",
+                                            format: "float",
+                                            example: 4.5
+                                        ),
+                                        new OA\Property(
+                                            property: "image",
+                                            type: "string",
+                                            nullable: true,
+                                            example: "/api/image/23"
+                                        ),
+                                        new OA\Property(
+                                            property: "statut",
+                                            type: "string",
+                                            example: "EN_COURS"
+                                        ),
+                                        new OA\Property(
+                                            property: "createdAt",
+                                            type: "string",
+                                            example: "22-08-2025"
+                                        )
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function list(
         Request $request,
         PaginatorInterface $paginator
@@ -1265,7 +1460,226 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route("/api/trajetsFiltres", name: "filtre", methods: "GET")]
+    #[Route("/api/trajetsFiltres", name: "filtre", methods: ["GET"])]
+    #[OA\Get(
+        path: "/api/trajet/api/trajetsFiltres",
+        summary: "Trajets filtrés avec pagination",
+        description: "Retourne les trajets filtrés par 
+                        prix, durée, statut et si le trajet est écologique.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "estEcologique",
+                in: "query",
+                description: "Filtrer les trajets écologiques (true/false)",
+                required: false,
+                schema: new OA\Schema(
+                    type: "boolean"
+                )
+            ),
+            new OA\Parameter(
+                name: "prix",
+                in: "query",
+                description: "Filtrer les trajets dont le prix est inférieur ou égal",
+                required: false,
+                schema: new OA\Schema(
+                    type: "number",
+                    format: "float"
+                )
+            ),
+            new OA\Parameter(
+                name: "dureeVoyage",
+                in: "query",
+                description: "Filtrer les trajets dont la durée 
+                                est inférieure ou égale (format HH:MM)",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    example: "02:30"
+                )
+            ),
+            new OA\Parameter(
+                name: "statut",
+                in: "query",
+                description: "Filtrer par statut (ex: EN_ATTENTE, EN_COURS, etc.)",
+                required: false,
+                schema: new OA\Schema(
+                    type: "string",
+                    example: "EN_ATTENTE"
+                )
+            ),
+            new OA\Parameter(
+                name: "page",
+                in: "query",
+                description: "Numéro de page pour la pagination",
+                required: false,
+                schema: new OA\Schema(
+                    type: "integer",
+                    default: 1
+                )
+            ),
+            new OA\Parameter(
+                name: "limit",
+                in: "query",
+                description: "Nombre d'éléments par page",
+                required: false,
+                schema: new OA\Schema(
+                    type: "integer",
+                    default: 5
+                )
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste paginée des trajets filtrés",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "currentPage",
+                                type: "integer",
+                                example: 1
+                            ),
+                            new OA\Property(
+                                property: "totalItems",
+                                type: "integer",
+                                example: 50
+                            ),
+                            new OA\Property(
+                                property: "itemsPerPage",
+                                type: "integer",
+                                example: 5
+                            ),
+                            new OA\Property(
+                                property: "totalPages",
+                                type: "integer",
+                                example: 10
+                            ),
+                            new OA\Property(
+                                property: "items",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 12
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseDepart",
+                                            type: "string",
+                                            example: "Paris"
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseArrivee",
+                                            type: "string",
+                                            example: "Lyon"
+                                        ),
+                                        new OA\Property(
+                                            property: "placesDisponibles",
+                                            type: "integer",
+                                            example: 3
+                                        ),
+                                        new OA\Property(
+                                            property: "prix",
+                                            type: "number",
+                                            format: "float",
+                                            example: 45.5
+                                        ),
+                                        new OA\Property(
+                                            property: "dateDepart",
+                                            type: "string",
+                                            example: "23-08-2025"
+                                        ),
+                                        new OA\Property(
+                                            property: "heureDepart",
+                                            type: "string",
+                                            example: "08:30"
+                                        ),
+                                        new OA\Property(
+                                            property: "dateArrivee",
+                                            type: "string",
+                                            example: "23-08-2025"
+                                        ),
+                                        new OA\Property(
+                                            property: "dureeVoyage",
+                                            type: "string",
+                                            example: "02:30"
+                                        ),
+                                        new OA\Property(
+                                            property: "peage",
+                                            type: "string",
+                                            example: "oui"
+                                        ),
+                                        new OA\Property(
+                                            property: "estEcologique",
+                                            type: "string",
+                                            example: "non"
+                                        ),
+                                        new OA\Property(
+                                            property: "chauffeur",
+                                            type: "string",
+                                            example: "JeanDupont"
+                                        ),
+                                        new OA\Property(
+                                            property: "avisChauffeur",
+                                            type: "array",
+                                            items: new OA\Items(
+                                                type: "object",
+                                                properties: [
+                                                    new OA\Property(
+                                                        property: "id",
+                                                        type: "integer",
+                                                        example: 1
+                                                    ),
+                                                    new OA\Property(
+                                                        property: "note",
+                                                        type: "number",
+                                                        format: "float",
+                                                        example: 4.5
+                                                    ),
+                                                    new OA\Property(
+                                                        property: "commentaire",
+                                                        type: "string",
+                                                        example: "Très bon trajet"
+                                                    )
+                                                ]
+                                            )
+                                        ),
+                                        new OA\Property(
+                                            property: "moyenneNoteChauffeur",
+                                            type: "number",
+                                            format: "float",
+                                            example: 4.2
+                                        ),
+                                        new OA\Property(
+                                            property: "image",
+                                            type: "string",
+                                            example: "/api/image/12"
+                                        ),
+                                        new OA\Property(
+                                            property: "statut",
+                                            type: "string",
+                                            example: "EN_ATTENTE"
+                                        ),
+                                        new OA\Property(
+                                            property: "createdAt",
+                                            type: "string",
+                                            example: "23-08-2025"
+                                        )
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function filtre(
         Request $request,
         PaginatorInterface $paginator
@@ -1402,7 +1816,90 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route('/', name: 'index', methods: 'GET')]
+    #[Route('/', name: 'index', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/trajet/",
+        summary: "Trajets en cours pour l'utilisateur connecté",
+        description: "Retourne les trajets où l'utilisateur est 
+                        soit chauffeur, soit passager, uniquement ceux en cours.",
+        tags: ["Trajets"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste des trajets en cours",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "items",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 12
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseDepart",
+                                            type: "string",
+                                            example: "Paris"
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseArrivee",
+                                            type: "string",
+                                            example: "Lyon"
+                                        ),
+                                        new OA\Property(
+                                            property: "prix",
+                                            type: "number",
+                                            format: "float",
+                                            example: 45.5
+                                        ),
+                                        new OA\Property(
+                                            property: "dateDepart",
+                                            type: "string",
+                                            example: "23-08-2025"
+                                        ),
+                                        new OA\Property(
+                                            property: "statut",
+                                            type: "string",
+                                            example: "EN_COURS"
+                                        ),
+                                        new OA\Property(
+                                            property: "estChauffeur",
+                                            type: "boolean",
+                                            example: true
+                                        )
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non connu"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function index(): JsonResponse
     {
         // Récupérer l'utilisateur authentifié
@@ -1484,8 +1981,146 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route('/passagers/{id}', name: 'passagers', methods: 'GET')]
-    public function passagers(int $id): JsonResponse
+    #[Route('/passagers/{id}', name: 'passagers', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/trajet/passagers/{id}",
+        summary: "Liste des passagers pour un trajet",
+        description: "Retourne les passagers d'un trajet spécifique. 
+                        L'accès est réservé au chauffeur du trajet possédant 
+                        le rôle approprié.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                description: "ID du trajet",
+                required: true,
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste des passagers du trajet",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "array",
+                        items: new OA\Items(
+                            type: "object",
+                            properties: [
+                                new OA\Property(
+                                    property: "id",
+                                    type: "integer",
+                                    example: 5
+                                ),
+                                new OA\Property(
+                                    property: "prenom",
+                                    type: "string",
+                                    example: "Jean"
+                                ),
+                                new OA\Property(
+                                    property: "telephone",
+                                    type: "string",
+                                    example: "0612345678"
+                                ),
+                                new OA\Property(
+                                    property: "email",
+                                    type: "string",
+                                    example: "jean@example.com"
+                                ),
+                                new OA\Property(
+                                    property: "pseudo",
+                                    type: "string",
+                                    example: "JeanD"
+                                ),
+                                new OA\Property(
+                                    property: "image",
+                                    type: "string",
+                                    example: "https://example.com/uploads/user1.jpg"
+                                ),
+                                new OA\Property(
+                                    property: "roles",
+                                    type: "array",
+                                    items: new OA\Items(type: "string"),
+                                    example: ["ROLE_PASSAGER"]
+                                ),
+                                new OA\Property(
+                                    property: "trajetId",
+                                    type: "integer",
+                                    example: 12
+                                ),
+                                new OA\Property(
+                                    property: "reservationId",
+                                    type: "integer",
+                                    example: 34
+                                ),
+                                new OA\Property(
+                                    property: "statutReservation",
+                                    type: "string",
+                                    example: "CONFIRMEE"
+                                )
+                            ]
+                        )
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non authentifié"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès interdit",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès interdit"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Trajet non trouvé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Trajet non trouvé"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
+    public function passagers(int $id, Request $request): JsonResponse
     {
 
         $user = $this->security->getUser();
@@ -1541,6 +2176,15 @@ final class TrajetController extends AbstractController
                     'id' => $passager->getId(),
                     'prenom' => $passager->getPrenom(),
                     'telephone' => $passager->getTelephone(),
+                    'email' => $passager->getEmail(),
+                    'pseudo' => $passager->getPseudo(),
+                    'image' => $passager->getImage()
+                        ? $request->getSchemeAndHttpHost() . $passager->getImage()->getFilePath()
+                        : null,
+                    'roles' => $passager->getRoles(),
+                    'trajetId' => $trajet->getId(),
+                    'reservationId' => $reservation->getId(),
+                    'statutReservation' => $reservation->getStatut(),
                     // autres champs si besoin
                 ];
             }
@@ -1549,7 +2193,672 @@ final class TrajetController extends AbstractController
         return new JsonResponse($passagers);
     }
 
-    #[Route('/terminee/{id}', name: 'terminee', methods: 'POST')]
+    #[Route('/passagersFilter/{id}', name: 'Filterpassagers', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/trajet/passagersFilter/{id}",
+        summary: "Liste filtrée des passagers pour un trajet",
+        description: "Retourne les passagers d'un trajet spécifique 
+                        dont la réservation est en attente ou confirmée. 
+                        L'accès est réservé au chauffeur du trajet avec 
+                        le rôle approprié.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                description: "ID du trajet",
+                required: true,
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste filtrée des passagers du trajet",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "array",
+                        items: new OA\Items(
+                            type: "object",
+                            properties: [
+                                new OA\Property(
+                                    property: "id",
+                                    type: "integer",
+                                    example: 5
+                                ),
+                                new OA\Property(
+                                    property: "prenom",
+                                    type: "string",
+                                    example: "Jean"
+                                ),
+                                new OA\Property(
+                                    property: "telephone",
+                                    type: "string",
+                                    example: "0612345678"
+                                ),
+                                new OA\Property(
+                                    property: "email",
+                                    type: "string",
+                                    example: "jean@example.com"
+                                ),
+                                new OA\Property(
+                                    property: "pseudo",
+                                    type: "string",
+                                    example: "JeanD"
+                                ),
+                                new OA\Property(
+                                    property: "image",
+                                    type: "string",
+                                    example: "https://example.com/uploads/user1.jpg"
+                                ),
+                                new OA\Property(
+                                    property: "roles",
+                                    type: "array",
+                                    items: new OA\Items(type: "string"),
+                                    example: ["ROLE_PASSAGER"]
+                                ),
+                                new OA\Property(
+                                    property: "trajetId",
+                                    type: "integer",
+                                    example: 12
+                                ),
+                                new OA\Property(
+                                    property: "reservationId",
+                                    type: "integer",
+                                    example: 34
+                                ),
+                                new OA\Property(
+                                    property: "statutReservation",
+                                    type: "string",
+                                    example: "CONFIRMEE"
+                                )
+                            ]
+                        )
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non authentifié"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès interdit",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès interdit"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Trajet non trouvé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Trajet non trouvé"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
+    public function Filterpassagers(int $id, Request $request): JsonResponse
+    {
+
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non authentifié'
+                ],
+                401
+            );
+        }
+
+        $trajet = $this->repository->find($id);
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                404
+            );
+        }
+
+        // Vérifie que l'utilisateur est le chauffeur de ce trajet
+        $chauffeur = $trajet->getChauffeur();
+        $userId = $user->getId();
+
+        $roles = $user->getRoles();
+        $isChauffeur = $chauffeur && $chauffeur->getId() === $userId;
+        $hasRightRole = in_array(
+            'ROLE_CHAUFFEUR',
+            $roles
+        )
+            ||
+            in_array(
+                'ROLE_PASSAGER_CHAUFFEUR',
+                $roles
+            );
+
+        if (!($isChauffeur && $hasRightRole)) {
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
+        }
+
+        // récupérer les passagers via les réservations
+        $passagers = [];
+        foreach ($trajet->getReservations() as $reservation) {
+            // 💡 Ne garder que les réservations EN_ATTENTE ou CONFIRMEE
+            if (!in_array($reservation->getStatut(), ['EN_ATTENTE', 'CONFIRMEE'])) {
+                continue; // on ignore les autres statuts (ex: ANNULEE)
+            }
+
+            $passager = $reservation->getUser();
+
+            // On exclut le chauffeur du trajet
+            if ($passager && $passager->getId() !== $chauffeur->getId()) {
+                $passagers[] = [
+                    'id' => $passager->getId(),
+                    'prenom' => $passager->getPrenom(),
+                    'telephone' => $passager->getTelephone(),
+                    'email' => $passager->getEmail(),
+                    'pseudo' => $passager->getPseudo(),
+                    'image' => $passager->getImage()
+                        ? $request->getSchemeAndHttpHost() . $passager->getImage()->getFilePath()
+                        : null,
+                    'roles' => $passager->getRoles(),
+                    'trajetId' => $trajet->getId(),
+                    'reservationId' => $reservation->getId(),
+                    'statutReservation' => $reservation->getStatut(),
+                    // autres champs si besoin
+                ];
+            }
+        }
+
+        return new JsonResponse($passagers);
+    }
+
+    #[Route('/accepter/{trajetId}/passagers/{passagerId}', name: 'accepter_passager', methods: ['POST'])]
+    #[OA\Post(
+        path: "/api/trajet/accepter/{trajetId}/passagers/{passagerId}",
+        summary: "Accepter un passager pour un trajet",
+        description: "Permet au chauffeur du trajet 
+                        d'accepter un passager. La réservation 
+                        du passager est mise à jour avec le statut 
+                        CONFIRMEE.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "trajetId",
+                in: "path",
+                description: "ID du trajet",
+                required: true,
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            ),
+            new OA\Parameter(
+                name: "passagerId",
+                in: "path",
+                description: "ID du passager à accepter",
+                required: true,
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Passager accepté avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Passager accepté par le chauffeur, passager notifié."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non authentifié"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès interdit (l'utilisateur n'est pas le chauffeur)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès interdit"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Trajet ou réservation non trouvée",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Trajet non trouvé ou Réservation non trouvée"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
+    public function accepterPassager(
+        int $trajetId,
+        int $passagerId
+    ): JsonResponse {
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non authentifié'],
+                401
+            );
+        }
+
+        $trajet = $this->repository->find($trajetId);
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                404
+            );
+        }
+
+        // Vérifie que l'utilisateur est bien le chauffeur du trajet
+        if ($trajet->getChauffeur()->getId() !== $user->getId()) {
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
+        }
+
+        // Recherche de la réservation du passager pour ce trajet
+        $reservation = $this->reservationRepository->findOneBy(
+            [
+                'trajet' => $trajet,
+                'user' => $passagerId,
+            ]
+        );
+
+        if (!$reservation) {
+            return new JsonResponse(
+                ['error' => 'Réservation non trouvée'],
+                404
+            );
+        }
+
+        $reservation->setStatut('CONFIRMEE');
+        $this->manager->flush();
+
+        return new JsonResponse(
+            ['message' => 'Passager accepté par le chauffeur, passager notifié.']
+        );
+    }
+
+    #[Route('/refuser/{trajetId}/passagers/{passagerId}', name: 'refuser_passager', methods: ['POST'])]
+    #[OA\Post(
+        path: "/api/trajet/refuser/{trajetId}/passagers/{passagerId}",
+        summary: "Refuser un passager pour un trajet",
+        description: "Permet au chauffeur de refuser un passager. 
+                        La réservation est annulée, la place est libérée 
+                        et les crédits du passager sont remboursés.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "trajetId",
+                in: "path",
+                description: "ID du trajet",
+                required: true,
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            ),
+            new OA\Parameter(
+                name: "passagerId",
+                in: "path",
+                description: "ID du passager à refuser",
+                required: true,
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Passager refusé avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Passager refusé, place libérée et 
+                                    crédits remboursés, passager notifié."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non authentifié"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès interdit (l'utilisateur n'est pas le chauffeur)",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Accès interdit"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Trajet ou réservation non trouvée",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Trajet non trouvé ou Réservation non trouvée"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
+    public function refuserPassager(
+        int $trajetId,
+        int $passagerId
+    ): JsonResponse {
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur non authentifié'],
+                401
+            );
+        }
+
+        $trajet = $this->repository->find($trajetId);
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé'],
+                404
+            );
+        }
+
+        if ($trajet->getChauffeur()->getId() !== $user->getId()) {
+            return new JsonResponse(
+                ['error' => 'Accès interdit'],
+                403
+            );
+        }
+
+        $reservation = $this->reservationRepository->findOneBy(
+            [
+                'trajet' => $trajet,
+                'user' => $passagerId,
+            ]
+        );
+
+        if (!$reservation) {
+            return new JsonResponse(
+                ['error' => 'Réservation non trouvée'],
+                404
+            );
+        }
+
+        $reservation->setStatut('ANNULEE');
+
+        // Libérer la place
+        $trajet->setNombrePlacesDisponible(
+            $trajet->getNombrePlacesDisponible() + 1
+        );
+
+        // Rembourser le passager
+        $prixTrajet = (int) round(
+            floatval($trajet->getPrix())
+        );
+        $passager = $reservation->getUser();
+        $passager->setCredits(
+            $passager->getCredits() + $prixTrajet
+        );
+
+        $reservation->setUpdatedAt(new \DateTimeImmutable());
+
+        $this->manager->flush();
+
+        return new JsonResponse(
+            [
+                'message' => 'Passager refusé, place libérée et crédits remboursés, passager notifié.'
+            ]
+        );
+    }
+
+    #[Route('/terminee/{id}', name: 'terminee', methods: ['POST'])]
+    #[OA\Post(
+        path: "/api/trajet/terminee/{id}",
+        summary: "Marquer un trajet comme terminé",
+        description: "Permet au chauffeur de terminer un trajet. 
+                        Les crédits sont transférés à l'administrateur 
+                        et le statut du trajet est mis à jour.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                description: "ID du trajet à terminer",
+                required: true,
+                schema: new OA\Schema(
+                    type: "integer"
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Trajet terminé et crédits transférés",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "message",
+                                type: "string",
+                                example: "Trajet terminé et crédits transférés."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Erreur liée aux crédits ou transfert déjà effectué",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Crédits insuffisants ou crédits déjà transférés."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non authentifié"
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "Accès interdit ou rôle non autorisé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Vous ne pouvez pas terminer ce trajet ou rôle non autorisé."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Trajet non trouvé",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Trajet non trouvé."
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 500,
+                description: "Erreur serveur, admin introuvable",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Admin introuvable."
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     public function terminee(int $id): JsonResponse
     {
         $trajet = $this->manager
@@ -1650,7 +2959,92 @@ final class TrajetController extends AbstractController
         );
     }
 
-    #[Route('/admin/trajets', name: 'admin_trajets_index', methods: 'GET')]
+    #[Route('/admin/trajets', name: 'admin_trajets_index', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/trajet/admin/trajets",
+        summary: "Lister tous les trajets (admin)",
+        description: "Permet à un administrateur de récupérer 
+                        la liste complète des trajets avec leurs 
+                        informations principales.",
+        tags: ["Trajets"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste des trajets récupérée avec succès",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "items",
+                                type: "array",
+                                items: new OA\Items(
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 1
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseDepart",
+                                            type: "string",
+                                            example: "10 Rue de Paris"
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseArrivee",
+                                            type: "string",
+                                            example: "20 Avenue de Lyon"
+                                        ),
+                                        new OA\Property(
+                                            property: "prix",
+                                            type: "number",
+                                            format: "float",
+                                            example: 15.5
+                                        ),
+                                        new OA\Property(
+                                            property: "dateDepart",
+                                            type: "string",
+                                            format: "date",
+                                            example: "23-08-2025"
+                                        ),
+                                        new OA\Property(
+                                            property: "statut",
+                                            type: "string",
+                                            example: "EN_COURS"
+                                        ),
+                                        new OA\Property(
+                                            property: "estChauffeur",
+                                            type: "boolean",
+                                            example: false
+                                        )
+                                    ]
+                                )
+                            )
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non connecté ou non administrateur",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non connecté"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_ADMIN')]
     public function adminIndex(): JsonResponse
     {
@@ -1670,9 +3064,6 @@ final class TrajetController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        // Si tu préfères ne montrer que les trajets EN_COURS :
-        // ->andWhere('t.statut = :statut')->setParameter('statut', 'EN_COURS')
-
         // Mise en forme identique à ta route user
         $items = array_map(static function (Trajet $trajet) {
             return [
@@ -1682,7 +3073,6 @@ final class TrajetController extends AbstractController
                 'prix'           => $trajet->getPrix(),
                 'dateDepart'     => $trajet->getDateDepart()?->format('d-m-Y'),
                 'statut'         => $trajet->getStatut(),
-                // Pas pertinent ici mais on garde la clef pour homogénéité :
                 'estChauffeur'   => false,
             ];
         }, $trajets);

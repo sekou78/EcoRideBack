@@ -30,11 +30,12 @@ final class ReservationController extends AbstractController
         private ValidatorInterface $validator
     ) {}
 
-    #[Route(methods: "POST")]
+    #[Route(methods: ["POST"])]
     #[OA\Post(
         path: "/api/reservation",
         summary: "Créer une nouvelle réservation",
         description: "Permet à un utilisateur de créer réservation pour un trajet.",
+        tags: ["Reservations"],
         requestBody: new OA\RequestBody(
             required: true,
             description: "Données de la réservation à créer",
@@ -200,7 +201,9 @@ final class ReservationController extends AbstractController
                 !in_array('ROLE_PASSAGER_CHAUFFEUR', $roles)
             ) {
                 return new JsonResponse(
-                    ['error' => 'Vous n\'êtes pas autorisé à effectuer une réservation.'],
+                    [
+                        'error' => "Verifier que vous avez le rôle 'PASSAGER' ou 'PASSAGER_CHAUFFEUR'."
+                    ],
                     Response::HTTP_FORBIDDEN
                 );
             }
@@ -301,11 +304,12 @@ final class ReservationController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "show", methods: "GET")]
+    #[Route("/{id}", name: "show", methods: ["GET"])]
     #[OA\Get(
         path: '/api/reservation/{id}',
         summary: 'Afficher une réservation',
         description: 'Retourne une réservation qui appartient à l’utilisateur connecté.',
+        tags: ['Reservations'],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -426,11 +430,12 @@ final class ReservationController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "edit", methods: "PUT")]
+    #[Route("/{id}", name: "edit", methods: ["PUT"])]
     #[OA\Put(
         path: '/api/reservation/{id}',
         summary: 'Modifier une réservation',
         description: 'Permet à l’utilisateur de modifier sa propre réservation.',
+        tags: ['Reservations'],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -592,11 +597,12 @@ final class ReservationController extends AbstractController
         );
     }
 
-    #[Route("/{id}", name: "delete", methods: "DELETE")]
+    #[Route("/{id}", name: "delete", methods: ["DELETE"])]
     #[OA\Delete(
         path: '/api/reservation/{id}',
         summary: 'Supprimer une réservation',
         description: 'Supprimer sa réservation.',
+        tags: ['Reservations'],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -751,7 +757,106 @@ final class ReservationController extends AbstractController
         );
     }
 
-    #[Route('/', name: 'index', methods: 'GET')]
+    #[Route('/', name: 'index', methods: ['GET'])]
+    #[OA\Get(
+        path: "/api/reservation/",
+        summary: "Lister les réservations sans avis pour l’utilisateur connecté",
+        description: "Retourne toutes les réservations de l’utilisateur connecté 
+                        sur lesquelles il n’a pas encore laissé d’avis. La liste est triée par statut : 
+                        CONFIRMEE > EN_ATTENTE > autres.",
+        tags: ["Reservations"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Liste des réservations sans avis",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "array",
+                        items: new OA\Items(
+                            type: "object",
+                            properties: [
+                                new OA\Property(
+                                    property: "id",
+                                    type: "integer",
+                                    example: 15
+                                ),
+                                new OA\Property(
+                                    property: "statut",
+                                    type: "string",
+                                    example: "CONFIRMEE"
+                                ),
+                                new OA\Property(
+                                    property: "trajet",
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 7
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseDepart",
+                                            type: "string",
+                                            example: "10 rue de Paris, Lyon"
+                                        ),
+                                        new OA\Property(
+                                            property: "adresseArrivee",
+                                            type: "string",
+                                            example: "25 avenue de Marseille, Nice"
+                                        ),
+                                        new OA\Property(
+                                            property: "dateDepart",
+                                            type: "string",
+                                            example: "22-08-2025"
+                                        )
+                                    ]
+                                ),
+                                new OA\Property(
+                                    property: "user",
+                                    type: "object",
+                                    properties: [
+                                        new OA\Property(
+                                            property: "id",
+                                            type: "integer",
+                                            example: 3
+                                        ),
+                                        new OA\Property(
+                                            property: "email",
+                                            type: "string",
+                                            example: "utilisateur@mail.com"
+                                        ),
+                                        new OA\Property(
+                                            property: "pseudo",
+                                            type: "string",
+                                            example: "UtilisateurX"
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    )
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\MediaType(
+                    mediaType: "application/json",
+                    schema: new OA\Schema(
+                        type: "object",
+                        properties: [
+                            new OA\Property(
+                                property: "error",
+                                type: "string",
+                                example: "Utilisateur non authentifié"
+                            )
+                        ]
+                    )
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function index(): JsonResponse
     {
