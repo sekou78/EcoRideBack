@@ -406,7 +406,7 @@ final class HistoriqueController extends AbstractController
         path: "/api/historique/{id}",
         summary: "Supprimer un historique",
         description: "Supprime un historique par l'administrateur.",
-        tags: ["Historique"],
+        tags: ["Admin"],
         parameters: [
             new OA\Parameter(
                 name: "id",

@@ -258,7 +258,7 @@ final class AvisController extends AbstractController
         path: "/api/avis/",
         summary: "Lister tous les avis",
         description: "Accessible uniquement aux employées",
-        tags: ["Avis"],
+        tags: ["Employés"],
         responses: [
             new OA\Response(
                 response: 200,
@@ -468,7 +468,7 @@ final class AvisController extends AbstractController
         path: "/api/avis/employee/validate-avis/{id}",
         summary: "Valider un avis client",
         description: "Validation d'un avis client par un employé.",
-        tags: ["Avis"],
+        tags: ["Employés"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -617,7 +617,7 @@ final class AvisController extends AbstractController
         path: "/api/avis/employee/refuse-avis/{id}",
         summary: "Refuser un avis client",
         description: "Refus de l'avis client par un employé.",
-        tags: ["Avis"],
+        tags: ["Employés"],
         parameters: [
             new OA\Parameter(
                 name: "id",
@@ -761,7 +761,7 @@ final class AvisController extends AbstractController
         path: "/api/avis/{id}",
         summary: "Supprimer un avis",
         description: "Permet à un employé de supprimer un avis.",
-        tags: ["Avis"],
+        tags: ["Employés"],
         parameters: [
             new OA\Parameter(
                 name: "id",
