@@ -52,3 +52,9 @@
 
     * Installation de Nelmio Cors Bundle si c'est pas fait
         - $ composer require nelmio/cors-bundle.
+
+# Faire tourner docker
+
+    * Faire tourner docker pour l'archivage des trajets
+        - $ docker-compose up -d
+        - $ php bin/console app:archive-trajets

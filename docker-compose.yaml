@@ -1,0 +1,18 @@
+services:
+  mongodb:
+    image: mongo:6
+    container_name: ecoRide_mongodb
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mailer:
+    image: axllent/mailpit
+    container_name: eco_mailer
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  mongo-data:

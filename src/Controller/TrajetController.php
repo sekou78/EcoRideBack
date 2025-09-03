@@ -8,6 +8,7 @@ use App\Entity\Trajet;
 use App\Entity\User;
 use App\Repository\ReservationRepository;
 use App\Repository\TrajetRepository;
+use App\Service\ArchivageService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -32,6 +33,7 @@ final class TrajetController extends AbstractController
         private Security $security,
         private ValidatorInterface $validator,
         private ReservationRepository $reservationRepository,
+        private ArchivageService $archivageService,
     ) {}
 
     #[Route(methods: ["POST"])]
@@ -925,6 +927,10 @@ final class TrajetController extends AbstractController
 
         if ($data['statut']) {
             $trajet->setStatut($data['statut']);
+        }
+
+        if ($trajet->getStatut() === 'TERMINEE') {
+            $this->archivageService->archiverTrajet($trajet);
         }
 
         $errors = $this->validator->validate($trajet);

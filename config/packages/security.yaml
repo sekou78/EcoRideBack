@@ -36,6 +36,7 @@ security:
     - { path: ^/api/supportMessage/send, roles: PUBLIC_ACCESS }
     - { path: ^/api/image/, roles: PUBLIC_ACCESS }
     - { path: ^/api/trajet/, roles: PUBLIC_ACCESS }
+    - { path: ^/api/archives, roles: ROLE_ADMIN }
     - { path: ^/admin, roles: ROLE_ADMIN }
     - { path: ^/employe, roles: ROLE_EMPLOYE }
     - { path: ^/passager, roles: ROLE_PASSAGER }
