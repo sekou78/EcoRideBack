@@ -8,11 +8,11 @@ use Doctrine\ODM\MongoDB\DocumentManager;
 
 class ArchivageService
 {
-    private DocumentManager $dm;
+    private DocumentManager $docManager;
 
-    public function __construct(DocumentManager $dm)
+    public function __construct(DocumentManager $docManager)
     {
-        $this->dm = $dm;
+        $this->docManager = $docManager;
     }
 
     public function archiverTrajet(Trajet $trajet): void
@@ -26,20 +26,22 @@ class ArchivageService
             'statut' => $trajet->getStatut(),
         ];
 
-        $existingArchive = $this->dm->getRepository(TrajetArchive::class)
-            ->findOneBy(['trajetId' => $trajet->getId()]);
+        $existingArchive = $this->docManager->getRepository(TrajetArchive::class)
+            ->findOneBy(
+                ['trajetId' => $trajet->getId()]
+            );
 
         if ($existingArchive) {
-            // Mettre à jour l'archive existante avec les nouvelles données
+            //Mettre à jour l'archive existante avec les nouvelles données
             $existingArchive->setSnapshot($data);
             $existingArchive->setArchivedAt(new \DateTime());
         } else {
-            // Créer une nouvelle archive
+            //Sinon, crréer une nouvelle archive
             $archive = new TrajetArchive($trajet->getId(), $data);
-            $this->dm->persist($archive);
+            $this->docManager->persist($archive);
         }
 
-        // Sauvegarder les changements dans la base de données
-        $this->dm->flush();
+        // Sauvegarder les changements dans la base de données MongoDB
+        $this->docManager->flush();
     }
 }

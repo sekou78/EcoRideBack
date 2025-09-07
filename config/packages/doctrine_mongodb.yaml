@@ -3,7 +3,7 @@ doctrine_mongodb:
   auto_generate_hydrator_classes: true
   connections:
     default:
-      server: "mongodb://localhost:27017" # URL de votre serveur MongoDB
+      server: "mongodb://localhost:27017" # URL du serveur MongoDB
       options: {}
   default_database: "EcoRideDB" # Le nom de la base de données
   document_managers:

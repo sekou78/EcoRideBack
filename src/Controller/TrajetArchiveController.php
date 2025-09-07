@@ -12,15 +12,26 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/archives')]
 class TrajetArchiveController extends AbstractController
 {
+    public function __construct(
+        private DocumentManager $docManager
+    ) {}
     #[Route('/', name: 'archives_list', methods: ['GET'])]
-    public function list(DocumentManager $dm, Request $request): JsonResponse
+    public function list(Request $request): JsonResponse
     {
-        // Pagination : page et limit via query params
-        $page = max(1, (int) $request->query->get('page', 1));
-        $limit = max(1, (int) $request->query->get('limit', 5));
+        // Pagination
+        $page = max(
+            1,
+            (int) $request->query
+                ->get('page', 1)
+        );
+        $limit = max(
+            1,
+            (int) $request->query
+                ->get('limit', 5)
+        );
         $skip = ($page - 1) * $limit;
 
-        // Paramètres de filtrage
+        // Récupération des filtres
         $depart = $request->query->get('depart');
         $arrivee = $request->query->get('arrivee');
         $dateDepart = $request->query->get('dateDepart');
@@ -29,46 +40,50 @@ class TrajetArchiveController extends AbstractController
 
         $filters = [];
 
-        // Filtrage par adresseDepart
-        if ($depart) {
-            $filters['snapshot.adresseDepart'] = $depart;
-        }
+        if ($depart) $filters['snapshot.adresseDepart'] = $depart;
+        if ($arrivee) $filters['snapshot.adresseArrivee'] = $arrivee;
 
-        // Filtrage par adresseArrivee
-        if ($arrivee) {
-            $filters['snapshot.adresseArrivee'] = $arrivee;
-        }
-
-        // Filtrage par dateDepart
+        $dateDepartFormatted = null;
         if ($dateDepart) {
-            // Convertir la date au format `d/m/Y` reçu dans la requête
             $dateDepartFormatted = \DateTime::createFromFormat('d/m/Y', $dateDepart);
-
-            if ($dateDepartFormatted) {
-                // Convertir en format `d-m-Y H:i:s` pour correspondre à ce qui est stocké dans MongoDB
-                $filters['snapshot.dateDepart'] = $dateDepartFormatted->format('d-m-Y') . ' 00:00:00';
-            } else {
-                // Si la date est mal formatée
-                return $this->json(['error' => 'Invalid date format. Use dd/mm/yyyy.'], 400);
+            if (!$dateDepartFormatted) {
+                return $this->json(
+                    ['error' => 'Invalid date format. Use dd/mm/yyyy.'],
+                    400
+                );
             }
+            $filters['snapshot.dateDepart'] = $dateDepartFormatted->format('d-m-Y') . ' 00:00:00';
         }
 
-        // Filtrage par prixMin
-        if ($prixMin) {
-            $filters['snapshot.prix']['$gte'] = (float)$prixMin;
-        }
-
-        // Filtrage par prixMax
+        if ($prixMin) $filters['snapshot.prix']['$gte'] = (float)$prixMin;
         if ($prixMax) {
-            if (!isset($filters['snapshot.prix'])) {
-                $filters['snapshot.prix'] = [];
-            }
+            if (!isset($filters['snapshot.prix'])) $filters['snapshot.prix'] = [];
             $filters['snapshot.prix']['$lte'] = (float)$prixMax;
         }
 
-        // Requête avec les filtres générés
-        $archives = $dm->getRepository(TrajetArchive::class)
-            ->findBy($filters, ['archivedAt' => -1], $limit, $skip);
+        // Query Builder pour appliquer les filtres
+        $qb = $this->docManager->createQueryBuilder(TrajetArchive::class);
+
+        foreach ($filters as $key => $value) {
+            if (is_array($value)) {
+                foreach ($value as $op => $v) {
+                    $qb->field($key)->$op($v);
+                }
+            } else {
+                $qb->field($key)->equals($value);
+            }
+        }
+
+        // Clone pour compte total avant pagination
+        $countQb = clone $qb;
+        $totalCount = $countQb->getQuery()->execute()->count();
+
+        // Appliquer tri, skip et limit pour récupérer les archives paginées
+        $qb->sort('archivedAt', -1)
+            ->skip($skip)
+            ->limit($limit);
+
+        $archives = $qb->getQuery()->execute()->toArray();
 
         $data = array_map(function (TrajetArchive $archive) {
             return [
@@ -83,17 +98,24 @@ class TrajetArchiveController extends AbstractController
             'page' => $page,
             'limit' => $limit,
             'count' => count($data),
+            'totalCount' => $totalCount,
             'archives' => $data,
         ]);
     }
 
     #[Route('/{id}', name: 'archives_show', methods: ['GET'])]
-    public function show(DocumentManager $dm, string $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
-        $archive = $dm->getRepository(TrajetArchive::class)->find($id);
+        $archive = $this->docManager
+            ->getRepository(
+                TrajetArchive::class
+            )->find($id);
 
         if (!$archive) {
-            return $this->json(['error' => 'Archive non trouvée'], 404);
+            return $this->json(
+                ['error' => 'Archive non trouvée'],
+                404
+            );
         }
 
         $data = [

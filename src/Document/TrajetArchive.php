@@ -19,8 +19,10 @@ class TrajetArchive
     #[MongoDB\Field(type: "date")]
     private \DateTime $archivedAt;
 
-    public function __construct(int $trajetId, array $snapshot)
-    {
+    public function __construct(
+        int $trajetId,
+        array $snapshot
+    ) {
         $this->trajetId = $trajetId;
         $this->snapshot = $snapshot;
         $this->archivedAt = new \DateTime();
