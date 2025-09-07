@@ -8,6 +8,7 @@ use App\Entity\Trajet;
 use App\Entity\User;
 use App\Repository\ReservationRepository;
 use App\Repository\TrajetRepository;
+use App\Service\ArchivageService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,6 +21,8 @@ use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use OpenApi\Attributes as OA;
 use Knp\Component\Pager\PaginatorInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 
 #[Route("api/trajet", name: "app_api_trajet_")]
 final class TrajetController extends AbstractController
@@ -32,6 +35,7 @@ final class TrajetController extends AbstractController
         private Security $security,
         private ValidatorInterface $validator,
         private ReservationRepository $reservationRepository,
+        private ArchivageService $archivageService,
     ) {}
 
     #[Route(methods: ["POST"])]
@@ -927,6 +931,10 @@ final class TrajetController extends AbstractController
             $trajet->setStatut($data['statut']);
         }
 
+        if ($trajet->getStatut() === 'TERMINEE') {
+            $this->archivageService->archiverTrajet($trajet);
+        }
+
         $errors = $this->validator->validate($trajet);
         if (count($errors) > 0) {
             $errorMessages = [];
@@ -1109,6 +1117,93 @@ final class TrajetController extends AbstractController
             [
                 "message" => "Trajet supprimé avec succès"
             ],
+            Response::HTTP_OK
+        );
+    }
+
+    #[Route("/sendMailPassengers/{id}", name: "sendMailPassengers", methods: ["POST"])]
+    #[IsGranted('ROLE_USER')]
+    public function sendMailPassengers(
+        int $id,
+        Request $request,
+        MailerInterface $mailer
+    ): JsonResponse {
+        $trajet = $this->manager
+            ->getRepository(Trajet::class)
+            ->findOneBy(['id' => $id]);
+
+        if (!$trajet) {
+            return new JsonResponse(
+                ['error' => 'Trajet non trouvé.'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            return new JsonResponse(
+                [
+                    'error' => 'Utilisateur non authentifié'
+                ],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Vérifier que seul le chauffeur du trajet peut envoyer les notifications
+        if ($trajet->getChauffeur() !== $user) {
+            return new JsonResponse(
+                [
+                    'error' => "Vous n'êtes pas autorisé à envoyer des messages pour ce trajet."
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        // Récupérer les passagers
+        $passagers = array_filter(
+            $trajet->getUsers()->toArray(),
+            function ($user) {
+                return in_array('ROLE_PASSAGER', $user->getRoles())
+                    || in_array('ROLE_PASSAGER_CHAUFFEUR', $user->getRoles());
+            }
+        );
+
+        if (empty($passagers)) {
+            return new JsonResponse(
+                ['message' => 'Aucun passager trouvé pour ce trajet.'],
+                Response::HTTP_OK
+            );
+        }
+
+        // Message du chauffeur
+        $data = json_decode($request->getContent(), true) ?? [];
+        $messageChauffeur = $data['message'] ?? "votre trajet est terminé.";
+
+        // Envoi du mail à chaque passager
+        foreach ($passagers as $passager) {
+            $email = (new Email())
+                ->from('ecoride_studi@dinga223.fr')
+                ->replyTo($user->getEmail()) // L'adresse email du chauffeur
+                ->to($passager->getEmail()) // L'adresse email du passager
+                ->subject('Validation de votre trajet')
+                ->text("
+                    Bonjour {$passager->getPrenom()},
+
+                    Le chauffeur {$user->getPrenom()} {$user->getNom()} vous informe :
+                    {$messageChauffeur}
+
+                    Merci de vous rendre sur votre espace afin d’indiquer si tout s’est bien passé avec ce trajet.
+                    
+                    À bientôt,
+                    L’équipe Covoiturage EcoRide.
+                ");
+
+            $mailer->send($email);
+        }
+
+        return new JsonResponse(
+            ['message' => 'Les passagers ont été notifiés par email.'],
             Response::HTTP_OK
         );
     }
