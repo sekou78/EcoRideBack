@@ -1122,6 +1122,95 @@ final class TrajetController extends AbstractController
     }
 
     #[Route("/sendMailPassengers/{id}", name: "sendMailPassengers", methods: ["POST"])]
+    #[OA\Post(
+        path: "/api/trajet/sendMailPassengers/{id}",
+        summary: "Notifier les passagers d’un trajet par email",
+        description: "Permet au chauffeur d’envoyer un message à tous les passagers inscrits à son trajet.",
+        tags: ["Trajets"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                description: "Identifiant du trajet",
+                schema: new OA\Schema(
+                    type: "integer",
+                    example: 46
+                )
+            )
+        ],
+        requestBody: new OA\RequestBody(
+            required: false,
+            content: new OA\JsonContent(
+                type: "object",
+                properties: [
+                    new OA\Property(
+                        property: "message",
+                        type: "string",
+                        example: "Merci d'avoir voyagé avec moi ! J’espère que tout s’est bien passé."
+                    )
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Les passagers ont été notifiés avec succès",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "message",
+                            type: "string",
+                            example: "Les passagers ont été notifiés par email."
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Utilisateur non authentifié",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "error",
+                            type: "string",
+                            example: "Utilisateur non authentifié"
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: "L’utilisateur n’est pas autorisé",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "error",
+                            type: "string",
+                            example: "Vous n'êtes pas autorisé à envoyer des messages pour ce trajet."
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Trajet non trouvé",
+                content: new OA\JsonContent(
+                    type: "object",
+                    properties: [
+                        new OA\Property(
+                            property: "error",
+                            type: "string",
+                            example: "Trajet non trouvé."
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
     #[IsGranted('ROLE_USER')]
     public function sendMailPassengers(
         int $id,
@@ -2280,7 +2369,6 @@ final class TrajetController extends AbstractController
                     'trajetId' => $trajet->getId(),
                     'reservationId' => $reservation->getId(),
                     'statutReservation' => $reservation->getStatut(),
-                    // autres champs si besoin
                 ];
             }
         }
@@ -2499,7 +2587,6 @@ final class TrajetController extends AbstractController
                     'trajetId' => $trajet->getId(),
                     'reservationId' => $reservation->getId(),
                     'statutReservation' => $reservation->getStatut(),
-                    // autres champs si besoin
                 ];
             }
         }
